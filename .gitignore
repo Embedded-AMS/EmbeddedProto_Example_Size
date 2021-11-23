@@ -3,6 +3,10 @@
 # Learn more about .gitignore:
 #     https://www.atlassian.com/git/tutorials/saving-changes/gitignore
 
+# The generated and build results.
+build/
+generated/
+
 # Node artifact files
 node_modules/
 dist/
