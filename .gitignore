@@ -6,6 +6,7 @@
 # The generated and build results.
 build/
 generated/
+F446RE_EmbeddedProto/Debug
 
 # Node artifact files
 node_modules/
