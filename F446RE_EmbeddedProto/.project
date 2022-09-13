@@ -30,4 +30,21 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>Nanopb</name>
+			<type>2</type>
+			<location>/home/bart/EAMS/EmbeddedProto_Example_Size/generated/Nanopb</location>
+		</link>
+		<link>
+			<name>Nanopb_src</name>
+			<type>2</type>
+			<location>/home/bart/EAMS/EmbeddedProto_Example_Size/Nanopb</location>
+		</link>
+		<link>
+			<name>src</name>
+			<type>2</type>
+			<location>/home/bart/EAMS/EmbeddedProto_Example_Size/EmbeddedProto/src</location>
+		</link>
+	</linkedResources>
 </projectDescription>

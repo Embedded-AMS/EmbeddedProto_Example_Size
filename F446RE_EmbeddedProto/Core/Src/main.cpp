@@ -18,11 +18,14 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+#include <main.hpp>
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
-
+#define EAMS
+#ifdef EAMS
+#include <eams.hpp>
+#else
+#include <nanopb.h>
+#endif
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -89,6 +92,13 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+
+#ifdef EAMS
+  //test_field_sizes();
+  test_eams_array();
+#else
+  test_nanopb_array();
+#endif
 
   /* USER CODE END 2 */
 
