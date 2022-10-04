@@ -9,74 +9,11 @@
 #define INC_EAMS_HPP_
 
 #include "../../../../generated/EAMS/simple_types.h"
-#include "../../../../EmbeddedProto/src/WriteBufferInterface.h"
-#include "../../../../EmbeddedProto/src/ReadBufferInterface.h"
+#include "../../../../EmbeddedProto/src/WriteBufferFixedSize.h"
+#include "../../../../EmbeddedProto/src/ReadBufferFixedSize.h"
 #include <string>
 
 constexpr uint8_t N = 10;
-
-class WriteBuffer : public EmbeddedProto::WriteBufferInterface
-{
-  public:
-    WriteBuffer() : data_{0}, count_(0) {};
-    ~WriteBuffer() override = default;
-    void clear() override { count_ = 0; }
-    uint32_t get_size() const override { return count_; }
-    uint32_t get_max_size() const override { return N; }
-    uint32_t get_available_size() const override { return N - count_; }
-
-    bool push(const uint8_t byte) override
-    {
-      const bool result = N > count_;
-      if(result)
-      {
-        data_[count_] = byte;
-        ++count_;
-      }
-      return result;
-    };
-
-    bool push(const uint8_t* bytes, const uint32_t length) override
-    {
-      const bool result = N >= (count_ + length);
-      if(result)
-      {
-        memcpy(&(data_[count_]), bytes, length);
-        count_ += length;
-      }
-      return result;
-    }
-
-  private:
-    uint8_t data_[N];
-    uint8_t count_;
-};
-
-
-class ReadBuffer : public EmbeddedProto::ReadBufferInterface
-{
-  public:
-
-    ReadBuffer() : data_{0}, count_(0) {};
-    ~ReadBuffer() override = default;
-
-    uint32_t get_size() const override { return count_; }
-
-    uint32_t get_max_size() const override { return N; }
-
-
-    bool peek(uint8_t& byte) const { return data_[count_]; }
-
-    bool advance() override { ++count_; return true; }
-
-    bool advance(const uint32_t n_bytes) { count_ += n_bytes; return true; }
-
-    virtual bool pop(uint8_t& byte) { byte = data_[count_]; ++count_; return true; }
-
-  private:
-    uint8_t data_[N];
-    uint8_t count_;
-};
 
 class test_float {
   public:
@@ -142,10 +79,10 @@ Test_Simple_Types msg;
 void test_eams()
 {
   msg.set_a_int32(1);
-  WriteBuffer wbuffer;
+  ::EmbeddedProto::WriteBufferFixedSize<N> wbuffer;
   msg.serialize(wbuffer);
 
-  ReadBuffer rbuffer;
+  ::EmbeddedProto::ReadBufferFixedSize<N> rbuffer;
   msg.deserialize(rbuffer);
 }
 
@@ -154,13 +91,13 @@ void test_eams_array()
 {
   for(auto& msg : msgArray) {
 
-    msg.size();
+    //msg.size();
 
     msg.set_a_int32(1);
-    WriteBuffer wbuffer;
+    ::EmbeddedProto::WriteBufferFixedSize<N> wbuffer;
     msg.serialize(wbuffer);
 
-    ReadBuffer rbuffer;
+    ::EmbeddedProto::ReadBufferFixedSize<N> rbuffer;
     msg.deserialize(rbuffer);
   }
 }

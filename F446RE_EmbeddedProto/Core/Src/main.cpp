@@ -95,8 +95,10 @@ int main(void)
 
 #ifdef EAMS
   //test_field_sizes();
+  test_eams();
   test_eams_array();
 #else
+  test_nanopb();
   test_nanopb_array();
 #endif
 
