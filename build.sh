@@ -43,6 +43,10 @@ protoc -I./MessageDescriptions --cpp_out=./generated/Google ./MessageDescription
 mkdir -p ./generated/Nanopb
 protoc --plugin=protoc-gen-nanopb=Nanopb/generator/protoc-gen-nanopb -I./MessageDescriptions --nanopb_out=./generated/Nanopb ./MessageDescriptions/simple_types.proto
 
+# Generte sources for python helper scripts.
+mkdir -p ./generated/Python
+protoc -I./MessageDescriptions --python_out=./generated/Python ./MessageDescriptions/simple_types.proto
+
 
 # Build the tests
 mkdir -p build
@@ -51,11 +55,17 @@ cmake -DCMAKE_BUILD_TYPE=Debug ../
 make -j16
 
 
+echo " "
 echo "EAMS"
+./size_comparison_EAMS
 objdump -t size_comparison_EAMS | grep -e "F .text" | grep -e main
 
+echo " "
 echo "Google"
+./size_comparison_Google
 objdump -t size_comparison_Google | grep -e "F .text" | grep -e main
 
+echo " "
 echo "Nanopb"
+./size_comparison_Nanopb
 objdump -t size_comparison_Nanopb | grep -e "F .text" | grep -e main
