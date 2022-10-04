@@ -32,7 +32,7 @@ cmake_minimum_required(VERSION 3.5)
 
 project(test_EmbeddedProto)
 
-set(CMAKE_CXX_FLAGS "-std=c++17")
+set(CMAKE_CXX_FLAGS "-std=c++11")
 set(CMAKE_CXX_OUTPUT_EXTENSION_REPLACE 1)
 
 include_directories(test generated EmbeddedProto/src Nanopb)
