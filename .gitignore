@@ -7,6 +7,7 @@
 build/
 generated/
 F446RE_EmbeddedProto/Debug
+F446RE_EmbeddedProto/Release
 
 # Node artifact files
 node_modules/
