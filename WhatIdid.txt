@@ -1,0 +1,10 @@
+GoogleProtobuf install:
+  cd GoogleProtobuf
+  git submodule update --init --recursive
+  ./autogen.sh
+  configure
+  make -j8
+
+Running the desktop build:
+  ./build.sh
+
