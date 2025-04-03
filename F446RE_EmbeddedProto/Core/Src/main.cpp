@@ -19,7 +19,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include <main.hpp>
-
 #define EAMS
 #ifdef EAMS
 #include <eams.hpp>

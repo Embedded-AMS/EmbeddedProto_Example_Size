@@ -9,11 +9,12 @@
 #define INC_EAMS_HPP_
 
 #include "../../../../generated/EAMS/simple_types.h"
+#include "../../../../generated/EAMS/nested_message.h"
 #include "../../../../EmbeddedProto/src/WriteBufferFixedSize.h"
 #include "../../../../EmbeddedProto/src/ReadBufferFixedSize.h"
 #include <string>
 
-constexpr uint8_t N = 10;
+constexpr uint8_t N = 100;
 
 class test_float {
   public:
@@ -29,6 +30,8 @@ class test_double {
  *
     void size() const
     {
+      // In case this does not build because the variable is private change the Field class in EmbeddedProto field.h
+
       size_t total = 0;
       const size_t size_a_int32       = sizeof(a_int32_);        total += size_a_int32      ;
       const size_t size_a_int64       = sizeof(a_int64_);        total += size_a_int64      ;
@@ -50,9 +53,11 @@ class test_double {
       const size_t size_msg = sizeof(Test_Simple_Types);
     }
  */
-
+/*
 void test_field_sizes()
 {
+  // In case this does not build because the variable is private change the Field class in EmbeddedProto field.h
+
   size_t total = 0;
   const size_t size_a_int32       = sizeof(EmbeddedProto::int32::value_);        total += size_a_int32      ;
   const size_t size_a_int64       = sizeof(EmbeddedProto::int64::value_);        total += size_a_int64      ;
@@ -74,11 +79,25 @@ void test_field_sizes()
   int dummy = 0;
   dummy += 2;
 }
-
-Test_Simple_Types msg;
+*/
+Test_Simple_Types<10,10> msg;
 void test_eams()
 {
   msg.set_a_int32(1);
+  msg.set_a_int64(1);
+  msg.set_a_uint32(1);
+  msg.set_a_uint64(1);
+  msg.set_a_sint32(1);
+  msg.set_a_sint64(1);
+  msg.set_a_bool(true);
+  msg.set_a_enum(Test_Enum::TWOHUNDERDFIFTYFIVE);
+  msg.set_a_fixed64(1.0);
+  msg.set_a_sfixed64(1.0);
+  msg.set_a_double(1.0);
+  msg.set_a_fixed32(1.0);
+  msg.set_a_sfixed32(1.0);
+  msg.set_a_float(1.0);
+
   ::EmbeddedProto::WriteBufferFixedSize<N> wbuffer;
   msg.serialize(wbuffer);
 
@@ -86,7 +105,7 @@ void test_eams()
   msg.deserialize(rbuffer);
 }
 
-Test_Simple_Types msgArray[100];
+Test_Simple_Types<10,10> msgArray[100];
 void test_eams_array()
 {
   for(auto& msg : msgArray) {
@@ -94,12 +113,32 @@ void test_eams_array()
     //msg.size();
 
     msg.set_a_int32(1);
+    msg.set_a_int64(1);
+    msg.set_a_uint32(1);
+    msg.set_a_uint64(1);
+    msg.set_a_sint32(1);
+    msg.set_a_sint64(1);
+    msg.set_a_bool(true);
+    msg.set_a_enum(Test_Enum::TWOHUNDERDFIFTYFIVE);
+    msg.set_a_fixed64(1.0);
+    msg.set_a_sfixed64(1.0);
+    msg.set_a_double(1.0);
+    msg.set_a_fixed32(1.0);
+    msg.set_a_sfixed32(1.0);
+    msg.set_a_float(1.0);
+
     ::EmbeddedProto::WriteBufferFixedSize<N> wbuffer;
     msg.serialize(wbuffer);
 
     ::EmbeddedProto::ReadBufferFixedSize<N> rbuffer;
     msg.deserialize(rbuffer);
   }
+}
+
+demo::space::message_c<3,3> msg_c;
+void test_message_c()
+{
+  msg_c.clear();
 }
 
 #endif /* INC_EAMS_HPP_ */

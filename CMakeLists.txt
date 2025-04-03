@@ -32,7 +32,7 @@ cmake_minimum_required(VERSION 3.5)
 
 project(test_EmbeddedProto)
 
-set(CMAKE_CXX_FLAGS "-std=c++11")
+set(CMAKE_CXX_FLAGS "-std=c++14")
 set(CMAKE_CXX_OUTPUT_EXTENSION_REPLACE 1)
 
 include_directories(test generated EmbeddedProto/src Nanopb)
@@ -47,14 +47,16 @@ add_executable(size_comparison_EAMS ${src_files_EAMS})
 set_target_properties(size_comparison_EAMS PROPERTIES COMPILE_DEFINITIONS "EAMS")
 
 
-file(GLOB src_files_Google  
-    "generated/Google/*.cc"
-    "test/*.cpp"
-)
-
-add_executable(size_comparison_Google ${src_files_Google})
-set_target_properties(size_comparison_Google PROPERTIES COMPILE_DEFINITIONS "GOOGLE")
-target_link_libraries(size_comparison_Google protobuf)
+#file(GLOB src_files_Google  
+#    "generated/Google/*.cc"
+#    "test/*.cpp"
+#    "GoolgeProtobuf/src/google/protobuf/*.cc"
+#)
+#
+#add_executable(size_comparison_Google ${src_files_Google})
+#target_include_directories(size_comparison_Google PUBLIC GoolgeProtobuf/src/google/protobuf)
+#set_target_properties(size_comparison_Google PROPERTIES COMPILE_DEFINITIONS "GOOGLE")
+#target_link_libraries(size_comparison_Google protobuf)
 
 
 file(GLOB src_files_Nanopb    

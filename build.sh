@@ -29,42 +29,47 @@
 #   the Netherlands
 #
 
+# Clear any previously genearted results to prevent confusion when files are not regenerated when they should have.
+rm -rf ./build
+rm -rf ./generated
+
 # Generate sources using the EAMS plugin.
 mkdir -p ./generated/EAMS
-protoc --plugin=protoc-gen-eams=EmbeddedProto/protoc-gen-eams -I./MessageDescriptions --eams_out=./generated/EAMS ./MessageDescriptions/simple_types.proto
-
+./GoolgeProtobuf/bazel-bin/protoc --plugin=protoc-gen-eams=EmbeddedProto/protoc-gen-eams -I./MessageDescriptions --eams_out=./generated/EAMS ./MessageDescriptions/simple_types.proto
+./GoolgeProtobuf/bazel-bin/protoc --plugin=protoc-gen-eams=EmbeddedProto/protoc-gen-eams -I./MessageDescriptions --eams_out=./generated/EAMS ./MessageDescriptions/nested_message.proto
 
 # Generate sources using the default Goolge code.
 mkdir -p ./generated/Google
-protoc -I./MessageDescriptions --cpp_out=./generated/Google ./MessageDescriptions/simple_types.proto
+./GoolgeProtobuf/bazel-bin/protoc -I./MessageDescriptions --cpp_out=./generated/Google ./MessageDescriptions/simple_types.proto
 
 # Generate sources using Nanopb.
 mkdir -p ./generated/Nanopb
-protoc --plugin=protoc-gen-nanopb=Nanopb/generator/protoc-gen-nanopb -I./MessageDescriptions --nanopb_out=./generated/Nanopb ./MessageDescriptions/simple_types.proto
+./GoolgeProtobuf/bazel-bin/protoc --plugin=protoc-gen-nanopb=Nanopb/generator/protoc-gen-nanopb -I./MessageDescriptions --nanopb_out=./generated/Nanopb ./MessageDescriptions/simple_types.proto
+./GoolgeProtobuf/bazel-bin/protoc --plugin=protoc-gen-nanopb=Nanopb/generator/protoc-gen-nanopb -I./MessageDescriptions --nanopb_out=./generated/Nanopb ./MessageDescriptions/nested_message.proto
 
 # Generte sources for python helper scripts.
 mkdir -p ./generated/Python
-protoc -I./MessageDescriptions --python_out=./generated/Python ./MessageDescriptions/simple_types.proto
+./GoolgeProtobuf/bazel-bin/protoc -I./MessageDescriptions --python_out=./generated/Python ./MessageDescriptions/simple_types.proto
 
+#MESSAGE(FATAL_ERRORO "Could not find FOO_EXEC.")
 
 # Build the tests
 mkdir -p build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Debug ../
-make -j16
-
+cmake -DCMAKE_BUILD_TYPE=Release ../
+make -j16 -Wfatal-errors
 
 echo " "
 echo "EAMS"
-./size_comparison_EAMS
-objdump -t size_comparison_EAMS | grep -e "F .text" | grep -e main
+size size_comparison_EAMS
+#objdump -t size_comparison_EAMS | grep -e "F .text" | grep -e main
 
-echo " "
-echo "Google"
-./size_comparison_Google
-objdump -t size_comparison_Google | grep -e "F .text" | grep -e main
+#echo " "
+#echo "Google"
+#./size_comparison_Google
+#objdump -t size_comparison_Google | grep -e "F .text" | grep -e main
 
 echo " "
 echo "Nanopb"
-./size_comparison_Nanopb
-objdump -t size_comparison_Nanopb | grep -e "F .text" | grep -e main
+size size_comparison_Nanopb
+#objdump -t size_comparison_Nanopb | grep -e "F .text" | grep -e main
