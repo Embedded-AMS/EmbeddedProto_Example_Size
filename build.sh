@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 #
 # Copyright (C) 2020-2024 Embedded AMS B.V. - All Rights Reserved
 #
@@ -33,10 +33,15 @@
 rm -rf ./build
 rm -rf ./generated
 
+# Create results directory if it doesn't exist
+mkdir -p ../results
+
 # Generate sources using the EAMS plugin.
 mkdir -p ./generated/EAMS
-./GoolgeProtobuf/bazel-bin/protoc --plugin=protoc-gen-eams=EmbeddedProto/protoc-gen-eams -I./MessageDescriptions --eams_out=./generated/EAMS ./MessageDescriptions/simple_types.proto
-./GoolgeProtobuf/bazel-bin/protoc --plugin=protoc-gen-eams=EmbeddedProto/protoc-gen-eams -I./MessageDescriptions --eams_out=./generated/EAMS ./MessageDescriptions/nested_message.proto
+source "./EmbeddedProto/venv/bin/activate"
+embeddedproto -I./MessageDescriptions --eams_out=./generated/EAMS ./MessageDescriptions/simple_types.proto 
+embeddedproto -I./MessageDescriptions --eams_out=./generated/EAMS ./MessageDescriptions/nested_message.proto 
+python3 EmbeddedProto/dev/scripts/GenerateSizeTest.py -i./generated/EAMS -o./generated/EAMS
 
 # Generate sources using the default Goolge code.
 mkdir -p ./generated/Google
@@ -59,17 +64,47 @@ cd build
 cmake -DCMAKE_BUILD_TYPE=Release ../
 make -j16 -Wfatal-errors
 
-echo " "
-echo "EAMS"
-size size_comparison_EAMS
-#objdump -t size_comparison_EAMS | grep -e "F .text" | grep -e main
+
+#(
+#  echo " "
+#  echo "======== size_comparison_EAMS at $(date '+%Y-%m-%d %H:%M:%S') =========="
+#  echo " " 
+#  size size_comparison_EAMS
+#  echo " "
+#  #objdump -t size_comparison_EAMS | grep -e "F .text" | grep -e main
+#  echo "-----------------------------------------------------------------------"
+#) | tee -a ../results/history.log
+
+(
+  echo " "
+  echo "======== Generated size test at $(date '+%Y-%m-%d %H:%M:%S') =========="
+  echo " "
+  size generated_size_test_EAMS
+  echo " "
+  echo "-----------------------------------------------------------------------"
+) | tee -a ../results/history.log
+
+
+# Track individual symbol sizes
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+SYM_FILE="../results/symbol_sizes_EAMS_${TIMESTAMP}.csv"
+
+echo -e "\nTracking individual symbol sizes..."
+nm --print-size --size-sort -C generated_size_test_EAMS | awk '
+BEGIN {print "Symbol;Size;Type"} 
+/[tT] [^ ]+$/ {print $4 ";" $2 ";Function"} 
+/[bBdD] [^ ]+$/ {print $4 ";" $2 ";Variable"}' > "$SYM_FILE"
+
+# Update master spreadsheet
+echo "Updating symbol size history for EAMS..."
+(cd .. && python3 symbol_tracker/symbol_history.py "results/symbol_sizes_EAMS_${TIMESTAMP}.csv" "EAMS")
 
 #echo " "
 #echo "Google"
 #./size_comparison_Google
 #objdump -t size_comparison_Google | grep -e "F .text" | grep -e main
 
-echo " "
-echo "Nanopb"
-size size_comparison_Nanopb
+#echo " "
+#echo "Nanopb"
+#size size_comparison_Nanopb
 #objdump -t size_comparison_Nanopb | grep -e "F .text" | grep -e main

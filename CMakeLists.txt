@@ -32,20 +32,37 @@ cmake_minimum_required(VERSION 3.5)
 
 project(test_EmbeddedProto)
 
-set(CMAKE_CXX_FLAGS "-std=c++14")
+set(CMAKE_CXX_FLAGS "-std=c++20 -Os")
 set(CMAKE_CXX_OUTPUT_EXTENSION_REPLACE 1)
 
-include_directories(test generated EmbeddedProto/src Nanopb)
-
-
 file(GLOB src_files_EAMS    
-    "test/*.cpp"
+    "test/simple_types.cpp"
+    "EmbeddedProto/src/*.cpp"
+)
+
+file(GLOB src_files_EAMS_generated    
+    "test/simple_types.cpp"
     "EmbeddedProto/src/*.cpp"
 )
 
 add_executable(size_comparison_EAMS ${src_files_EAMS})
+target_include_directories(size_comparison_EAMS PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test 
+                                                        ${CMAKE_CURRENT_SOURCE_DIR}/generated
+                                                        ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS 
+                                                        ${CMAKE_CURRENT_SOURCE_DIR}/EmbeddedProto/src)
 set_target_properties(size_comparison_EAMS PROPERTIES COMPILE_DEFINITIONS "EAMS")
 
+file(GLOB src_files_EAMS_generated    
+    "test/generated_size_test.cpp"
+    "EmbeddedProto/src/*.cpp"
+)
+
+add_executable(generated_size_test_EAMS ${src_files_EAMS_generated})
+target_include_directories(generated_size_test_EAMS PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test 
+                                                            ${CMAKE_CURRENT_SOURCE_DIR}/generated
+                                                            ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS 
+                                                            ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS/subfolder
+                                                            ${CMAKE_CURRENT_SOURCE_DIR}/EmbeddedProto/src)
 
 #file(GLOB src_files_Google  
 #    "generated/Google/*.cc"
@@ -60,10 +77,14 @@ set_target_properties(size_comparison_EAMS PROPERTIES COMPILE_DEFINITIONS "EAMS"
 
 
 file(GLOB src_files_Nanopb    
-    "test/*.cpp"
+    "test/simple_types.cpp"
     "Nanopb/*.c"
     "generated/Nanopb/*.c"
 )
 
 add_executable(size_comparison_Nanopb ${src_files_Nanopb})
+target_include_directories(size_comparison_Nanopb PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test 
+                                                          ${CMAKE_CURRENT_SOURCE_DIR}/generated
+                                                          ${CMAKE_CURRENT_SOURCE_DIR}/generated/Nanopb 
+                                                          ${CMAKE_CURRENT_SOURCE_DIR}/Nanopb)
 set_target_properties(size_comparison_Nanopb PROPERTIES COMPILE_DEFINITIONS "NANOPB")
