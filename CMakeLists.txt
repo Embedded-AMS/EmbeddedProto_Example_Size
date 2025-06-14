@@ -46,6 +46,7 @@ file(GLOB src_files_EAMS_generated
 )
 
 add_executable(size_comparison_EAMS ${src_files_EAMS})
+target_link_options(size_comparison_EAMS PRIVATE "LINKER:-Map=${CMAKE_BINARY_DIR}/size_comparison_EAMS.map")
 target_include_directories(size_comparison_EAMS PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test 
                                                         ${CMAKE_CURRENT_SOURCE_DIR}/generated
                                                         ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS 
@@ -58,6 +59,7 @@ file(GLOB src_files_EAMS_generated
 )
 
 add_executable(generated_size_test_EAMS ${src_files_EAMS_generated})
+target_link_options(generated_size_test_EAMS PRIVATE "LINKER:-Map=${CMAKE_BINARY_DIR}/generated_size_test_EAMS.map")
 target_include_directories(generated_size_test_EAMS PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test 
                                                             ${CMAKE_CURRENT_SOURCE_DIR}/generated
                                                             ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS 
@@ -83,6 +85,7 @@ file(GLOB src_files_Nanopb
 )
 
 add_executable(size_comparison_Nanopb ${src_files_Nanopb})
+target_link_options(size_comparison_Nanopb PRIVATE "LINKER:-Map=${CMAKE_BINARY_DIR}/size_comparison_Nanopb.map")
 target_include_directories(size_comparison_Nanopb PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test 
                                                           ${CMAKE_CURRENT_SOURCE_DIR}/generated
                                                           ${CMAKE_CURRENT_SOURCE_DIR}/generated/Nanopb 
