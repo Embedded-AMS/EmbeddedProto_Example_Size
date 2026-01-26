@@ -32,7 +32,7 @@ cmake_minimum_required(VERSION 3.5)
 
 project(test_EmbeddedProto)
 
-set(CMAKE_CXX_FLAGS "-std=c++20 -Os")
+set(CMAKE_CXX_FLAGS "-std=c++20 -Os -fdata-sections -ffunction-sections -Wl,--gc-sections")
 set(CMAKE_CXX_OUTPUT_EXTENSION_REPLACE 1)
 
 file(GLOB src_files_EAMS    
@@ -64,6 +64,15 @@ target_include_directories(generated_size_test_EAMS PRIVATE ${CMAKE_CURRENT_SOUR
                                                             ${CMAKE_CURRENT_SOURCE_DIR}/generated
                                                             ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS 
                                                             ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS/subfolder
+                                                            ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS/onsemi
+                                                            ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS/onsemi/gpio
+                                                            ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS/onsemi/i2c
+                                                            ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS/onsemi/i2s
+                                                            ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS/onsemi/pdm
+                                                            ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS/onsemi/pwm
+                                                            ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS/onsemi/rcp
+                                                            ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS/onsemi/spi
+                                                            ${CMAKE_CURRENT_SOURCE_DIR}/generated/EAMS/onsemi/uart
                                                             ${CMAKE_CURRENT_SOURCE_DIR}/EmbeddedProto/src)
 
 #file(GLOB src_files_Google  

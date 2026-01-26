@@ -22,7 +22,11 @@
 
 int main(int argc, char **argv)
 {
+#ifdef EAMS  
+  Test_Simple_Types<1,1> msg;
+#else
   Test_Simple_Types msg;
+#endif
 
 #ifdef DESERIALIZE
   constexpr uint32_t N_DESERIALIZE_BYTES = 53;
@@ -46,7 +50,7 @@ int main(int argc, char **argv)
   const auto result = msg.deserialize(readBuffer);
 #endif
 
-  std::cout << "EAMS message size: " << sizeof(Test_Simple_Types) << std::endl;
+  std::cout << "EAMS message size: " << sizeof(Test_Simple_Types<1,1>) << std::endl;
 
 #elif GOOGLE
 

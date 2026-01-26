@@ -19,16 +19,21 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include <main.hpp>
-#define EAMS
+#define SIZE_TEST
+//#define EAMS
+#ifdef SIZE_TEST
+#include <SizeTest.h>
+#else
 #ifdef EAMS
 #include <eams.hpp>
 #else
 #include <nanopb.h>
 #endif
+#endif
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
+/* SER CODE BEGIN PTD */
 
 /* USER CODE END PTD */
 
@@ -91,7 +96,9 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-
+#ifdef SIZE_TEST
+  call_all_functions();
+#else
 #ifdef EAMS
   //test_field_sizes();
   test_eams();
@@ -99,6 +106,7 @@ int main(void)
 #else
   test_nanopb();
   test_nanopb_array();
+#endif
 #endif
 
   /* USER CODE END 2 */

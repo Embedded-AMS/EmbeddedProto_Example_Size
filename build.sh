@@ -38,9 +38,14 @@ mkdir -p ../results
 
 # Generate sources using the EAMS plugin.
 mkdir -p ./generated/EAMS
+mkdir -p ./generated/EAMS/onsemi
 source "./EmbeddedProto/venv/bin/activate"
 embeddedproto -I./MessageDescriptions --eams_out=./generated/EAMS ./MessageDescriptions/simple_types.proto 
 embeddedproto -I./MessageDescriptions --eams_out=./generated/EAMS ./MessageDescriptions/nested_message.proto 
+embeddedproto -I./MessageDescriptions/onsemi --eams_out=./generated/EAMS/onsemi ./MessageDescriptions/onsemi/rcp.proto 
+#find ./MessageDescriptions -name "*.proto" -print0 | while IFS= read -r -d '' file; do 
+#  embeddedproto -I./MessageDescriptions -I./MessageDescriptions/onsemi -I./MessageDescriptions/onsemi/gpio -I./MessageDescriptions/onsemi/i2c -I./MessageDescriptions/onsemi/i2s -I./MessageDescriptions/onsemi/pdm -I./MessageDescriptions/onsemi/pwm -I./MessageDescriptions/onsemi/rcp -I./MessageDescriptions/onsemi/spi -I./MessageDescriptions/onsemi/uart --eams_out=./generated/EAMS "$file"
+#done
 python3 EmbeddedProto/dev/scripts/GenerateSizeTest.py -i./generated/EAMS -o./generated/EAMS
 
 # Generate sources using the default Goolge code.
@@ -90,14 +95,10 @@ TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 SYM_FILE="../results/symbol_sizes_EAMS_${TIMESTAMP}.csv"
 
 echo -e "\nTracking individual symbol sizes..."
-nm --print-size --size-sort -C generated_size_test_EAMS | awk '
+nm -t d --print-size --size-sort -C generated_size_test_EAMS | awk '
 BEGIN {print "Symbol;Size;Type"} 
 /[tT] [^ ]+$/ {print $4 ";" $2 ";Function"} 
 /[bBdD] [^ ]+$/ {print $4 ";" $2 ";Variable"}' > "$SYM_FILE"
-
-# Update master spreadsheet
-echo "Updating symbol size history for EAMS..."
-(cd .. && python3 symbol_tracker/symbol_history.py "results/symbol_sizes_EAMS_${TIMESTAMP}.csv" "EAMS")
 
 #echo " "
 #echo "Google"
@@ -108,3 +109,21 @@ echo "Updating symbol size history for EAMS..."
 #echo "Nanopb"
 #size size_comparison_Nanopb
 #objdump -t size_comparison_Nanopb | grep -e "F .text" | grep -e main
+
+# Update master spreadsheet
+echo "Updating symbol size history for EAMS..."
+(cd .. && python3 symbol_tracker/symbol_history.py "results/symbol_sizes_EAMS_${TIMESTAMP}.csv" "EAMS")
+
+# Process map files
+##echo "Processing memory maps..."
+#(cd .. && python3 map_tracker/map_history.py "build/size_comparison_EAMS.map" "eams")
+#(cd .. && python3 map_tracker/map_history.py "build/generated_size_test_EAMS.map" "eams_generated")
+#(cd .. && python3 map_tracker/map_history.py "build/size_comparison_Nanopb.map" "nanopb")
+
+# Process map files for symbol tracking
+echo "Processing map files for symbol tracking..."
+cp size_comparison_EAMS.map ../results/size_comparison_EAMS_${TIMESTAMP}.map
+cp generated_size_test_EAMS.map ../results/generated_size_test_EAMS_${TIMESTAMP}.map
+#(cd .. && python3 map_tracker/map_symbol_tracker.py "build/size_comparison_EAMS.map" "eams")
+#(cd .. && python3 map_tracker/map_symbol_tracker.py "build/.map" "eams_generated")
+#(cd .. && python3 map_tracker/map_symbol_tracker.py "build/size_comparison_Nanopb.map" "nanopb")

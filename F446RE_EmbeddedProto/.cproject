@@ -165,8 +165,17 @@
 									<listOptionValue builtIn="false" value="../Drivers/CMSIS/Include"/>
 									<listOptionValue builtIn="false" value="/home/bart/EAMS/EmbeddedProto_Example_Size/generated/Nanopb"/>
 									<listOptionValue builtIn="false" value="/home/bart/EAMS/EmbeddedProto_Example_Size/Nanopb"/>
-									<listOptionValue builtIn="false" value="/home/bart/EAMS/EmbeddedProto_Example_Size/generated/EAMS"/>
 									<listOptionValue builtIn="false" value="/home/bart/EAMS/EmbeddedProto_Example_Size/EmbeddedProto/src"/>
+									<listOptionValue builtIn="false" value="/home/bart/EAMS/EmbeddedProto_Example_Size/generated/EAMS"/>
+									<listOptionValue builtIn="false" value="/home/bart/EAMS/EmbeddedProto_Example_Size/generated/EAMS/onsemi"/>
+									<listOptionValue builtIn="false" value="/home/bart/EAMS/EmbeddedProto_Example_Size/generated/EAMS/onsemi/uart"/>
+									<listOptionValue builtIn="false" value="/home/bart/EAMS/EmbeddedProto_Example_Size/generated/EAMS/onsemi/i2s"/>
+									<listOptionValue builtIn="false" value="/home/bart/EAMS/EmbeddedProto_Example_Size/generated/EAMS/onsemi/i2c"/>
+									<listOptionValue builtIn="false" value="/home/bart/EAMS/EmbeddedProto_Example_Size/generated/EAMS/onsemi/spi"/>
+									<listOptionValue builtIn="false" value="/home/bart/EAMS/EmbeddedProto_Example_Size/generated/EAMS/onsemi/rcp"/>
+									<listOptionValue builtIn="false" value="/home/bart/EAMS/EmbeddedProto_Example_Size/generated/EAMS/onsemi/pdm"/>
+									<listOptionValue builtIn="false" value="/home/bart/EAMS/EmbeddedProto_Example_Size/generated/EAMS/onsemi/pwm"/>
+									<listOptionValue builtIn="false" value="/home/bart/EAMS/EmbeddedProto_Example_Size/generated/EAMS/onsemi/gpio"/>
 								</option>
 								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.languagestandard.1875665340" name="Language standard" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.languagestandard" useByScannerDiscovery="true" value="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.languagestandard.value.isocpp17" valueType="enumerated"/>
 								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.noexceptions.358336228" name="Disable handling exceptions (-fno-exceptions)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.noexceptions" useByScannerDiscovery="false" value="true" valueType="boolean"/>

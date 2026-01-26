@@ -65,4 +65,8 @@ message Test_Simple_Types {
   }
 
   Nested_Enum a_nested_enum = 15;
+
+
+  string str = 16;
+  bytes byte = 17;
 }

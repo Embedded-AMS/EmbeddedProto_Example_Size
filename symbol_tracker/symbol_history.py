@@ -26,9 +26,9 @@ def process_symbols(symbol_csv, binary_name):
 
     # Merge with existing data
     if master_file.exists():
-        print(f"Reading existing master file with columns:")
+        #print(f"Reading existing master file with columns:")
         df_master = pd.read_csv(master_file)
-        print(df_master.columns.tolist())
+        #print(df_master.columns.tolist())
         
         # Add new timestamp column to master
         df_master[timestamp] = pd.Series(dtype='object')
@@ -48,9 +48,9 @@ def process_symbols(symbol_csv, binary_name):
         
         # Sort columns chronologically
         timestamp_cols = [col for col in df_master.columns if col not in ['Symbol', 'Type']]
-        print(f"Timestamp columns found: {timestamp_cols}")
+        #print(f"Timestamp columns found: {timestamp_cols}")
         df_merged = df_master[['Symbol', 'Type'] + sorted(timestamp_cols)]
-        print(f"Final columns: {df_merged.columns.tolist()}")
+        #print(f"Final columns: {df_merged.columns.tolist()}")
     else:
         print("Creating new master file")
         df_merged = df_new
@@ -62,7 +62,7 @@ def process_symbols(symbol_csv, binary_name):
     temp_file = master_file.with_suffix('.tmp')
     df_merged.to_csv(temp_file, index=False, sep=',')
     os.replace(temp_file, master_file)
-    print(f"Updated {master_file}")
+    #print(f"Updated {master_file}")
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
