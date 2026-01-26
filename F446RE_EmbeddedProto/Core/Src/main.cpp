@@ -19,8 +19,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include <main.hpp>
-#define SIZE_TEST
-//#define EAMS
+////////#define SIZE_TEST
+#define EAMS
 #ifdef SIZE_TEST
 #include <SizeTest.h>
 #else

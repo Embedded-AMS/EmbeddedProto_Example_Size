@@ -1,0 +1,44 @@
+# Size Comparison Tool - Progress Log
+
+## Codebase Patterns
+- The project uses CMake for building both desktop and embedded targets
+- Existing build.sh script handles code generation and compilation
+- STM32 project exists in F446RE_EmbeddedProto/ directory with STM32CubeIDE-generated makefiles
+- Symbol tracking and map analysis tools already exist
+- EmbeddedProto, NanoPB, and ArduinoJson are available as submodules
+- ARM toolchain is located in STM32CubeIDE plugins directory (e.g., /home/bart/st/stm32cubeide_1.4.0/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.*/tools/bin)
+- Build configuration uses -Os optimization and gc-sections for size optimization
+- The Release/ and Debug/ directories contain pre-generated makefiles from STM32CubeIDE
+
+---
+
+## Implementation Progress
+
+### [2025-01-17 14:00] - Starting SCT-001
+- Analyzing existing STM32 project structure
+- Identifying build requirements for automation
+
+---
+
+## [2025-01-26 22:45] - SCT-001 Completed
+- **What was implemented:**
+  - Rewrote build_stm32.py to properly automate STM32 builds
+  - Script finds ARM toolchain in STM32CubeIDE installation
+  - Invokes make in F446RE_EmbeddedProto/Release directory
+  - Generates EmbeddedProto code from proto files using venv
+  - Configures main.cpp for selected library (embeddedproto/nanopb/arduinojson)
+  - Extracts size metrics from ELF file using arm-none-eabi-size
+  - Supports --clean, --generate-only, --no-generate, --build-type options
+
+- **Files changed:**
+  - build_stm32.py - Complete rewrite with proper toolchain detection and build automation
+
+- **Learnings for future iterations:**
+  - STM32CubeIDE generates makefiles in Release/ and Debug/ directories
+  - ARM toolchain path must be added to PATH for make to work
+  - The makefile already uses -Os and gc-sections (configured in STM32CubeIDE)
+  - EmbeddedProto venv must be activated for code generation
+  - Clean builds take longer due to recompiling all HAL drivers
+  - main.cpp uses #define SIZE_TEST, EAMS, or neither (for nanopb) to select library
+
+---
