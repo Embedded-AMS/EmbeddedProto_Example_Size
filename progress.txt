@@ -16,6 +16,9 @@
 - UART output via ST-Link VCP on /dev/ttyACM0 at 115200 baud
 - Use pyserial for serial port detection and communication
 - STM32 firmware runs once at startup - use OpenOCD reset to trigger new measurement
+- Test scenarios are in scenarios/<name>/ with message.proto, test_data.json, expected_wire.bin
+- NanoPB options file uses dot notation: package.Message.field max_size:N
+- EmbeddedProto strings use mutable_field().set(data, len) not set_field(string)
 
 ---
 
@@ -126,5 +129,41 @@
   - Serial port must be opened BEFORE reset to capture startup output
   - build_stm32.py --no-generate skips proto generation but make may not rebuild if timestamps unchanged
   - Always use --clean or manually delete .o files when source changes aren't detected
+
+---
+
+## [2025-01-27 21:45] - SCT-005 Completed
+- **What was implemented:**
+  - Created scenarios/simple_types/ directory structure for standardized test scenarios
+  - Added message.proto with all basic protobuf types (int32, int64, uint32, uint64, bool, float, double, string, bytes, enum)
+  - Added test_data.json with known test values for each field
+  - Added expected_wire.bin with expected protobuf wire format (70 bytes)
+  - Added message.options for NanoPB fixed-size string/bytes (32 bytes each)
+  - Added test_embeddedproto.cpp for EmbeddedProto testing
+  - Added test_nanopb.cpp for NanoPB testing
+  - Added test_arduinojson.cpp for ArduinoJson testing (JSON format equivalent)
+  - Added generate_wire.py helper script to regenerate expected_wire.bin
+  - Added README.md documenting the scenario
+
+- **Files changed:**
+  - scenarios/simple_types/message.proto - Proto definition with all basic types
+  - scenarios/simple_types/message.options - NanoPB options for fixed-size fields
+  - scenarios/simple_types/test_data.json - Test data values
+  - scenarios/simple_types/expected_wire.bin - Expected wire format output
+  - scenarios/simple_types/test_embeddedproto.cpp - EmbeddedProto test code
+  - scenarios/simple_types/test_nanopb.cpp - NanoPB test code
+  - scenarios/simple_types/test_arduinojson.cpp - ArduinoJson test code
+  - scenarios/simple_types/generate_wire.py - Helper to generate expected_wire.bin
+  - scenarios/simple_types/README.md - Scenario documentation
+
+- **Learnings for future iterations:**
+  - NanoPB options file format: package.Message.field max_size:N (dots not underscores)
+  - NanoPB options file cannot have comments (# lines cause parse errors)
+  - EmbeddedProto string fields use mutable_a_string().set(data, len) not set_a_string(string)
+  - ArduinoJson uses StaticJsonDocument<size> for fixed memory allocation
+  - ArduinoJson bytes must be stored as JSON array of integers (no native binary)
+  - protoc version must match protobuf Python library version for generate_wire.py
+  - Generated code should not be committed - regenerate at build time
+  - Test code compilation: g++ -std=c++17 -c -I <include_paths> <source>.cpp
 
 ---
