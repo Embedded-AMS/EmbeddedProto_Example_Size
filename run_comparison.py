@@ -161,7 +161,7 @@ class ComparisonOrchestrator:
                 # Give board time to reset and start
                 time.sleep(2)
                 
-                cycle_result = self.cycle_measurer.measure()
+                cycle_result = self.cycle_measurer.capture_measurements()
                 if cycle_result.success and cycle_result.metrics:
                     result.cycles = cycle_result.metrics
                     result.cycles.library = library
