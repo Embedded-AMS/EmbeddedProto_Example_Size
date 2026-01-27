@@ -1,9 +1,11 @@
 # Size Comparison Tool - Progress Log
 
 ## Codebase Patterns
-- The project uses CMake for building both desktop and embedded targets
-- Existing build.sh script handles code generation and compilation
-- STM32 project exists in F446RE_EmbeddedProto/ directory with STM32CubeIDE-generated makefiles
+- The project uses CMake for building STM32 targets (F446RE_EmbeddedProto/CMakeLists.txt)
+- Library selection is done via CMake -DLIBRARY=<name> flag, not hardcoded defines in main.cpp
+- STM32CubeIDE Release/Debug directories are NOT under version control - use CMake instead
+- Existing build.sh script handles code generation and compilation for desktop
+- STM32 project exists in F446RE_EmbeddedProto/ directory
 - Symbol tracking and map analysis tools already exist
 - EmbeddedProto, NanoPB, and ArduinoJson are available as submodules
 - ARM toolchain is located in STM32CubeIDE plugins directory (e.g., /home/bart/st/stm32cubeide_1.4.0/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.*/tools/bin)
@@ -193,5 +195,33 @@
   - NanoPB encode/decode return bool status, not error codes
   - Test data values should match scenarios/simple_types/test_data.json for consistency
   - The makefile includes NanoPB sources from generated/Nanopb/ directory
+
+---
+
+## [2025-01-27 22:30] - SCT-007 Completed
+- **What was implemented:**
+  - Created CMakeLists.txt for STM32 project with CMake-based build system
+  - Replaced STM32CubeIDE makefile dependency with standalone CMake build
+  - Updated build_stm32.py to use CMake instead of STM32CubeIDE makefiles
+  - Updated main.cpp to use CMake-passed defines for library selection (no hardcoded defines)
+  - ArduinoJson test functions already existed in arduinojson.hpp (created in SCT-006)
+  - Verified build, flash, and cycle measurement all work for ArduinoJson
+
+- **Files changed:**
+  - F446RE_EmbeddedProto/CMakeLists.txt - New CMake build system for STM32
+  - F446RE_EmbeddedProto/Core/Src/main.cpp - Removed hardcoded library defines
+  - build_stm32.py - Rewritten to use CMake instead of STM32CubeIDE makefiles
+
+- **Test Results:**
+  - ArduinoJson simple_types: Flash=14,584 bytes, RAM=31,972 bytes
+  - Serialize: 18,213 cycles, Deserialize: 12,885 cycles, Total: 31,098 cycles
+
+- **Learnings for future iterations:**
+  - STM32CubeIDE Release/Debug directories are NOT under version control - don't modify them
+  - Use CMake for reproducible builds instead of IDE-generated makefiles
+  - Library selection should be via CMake -DLIBRARY=<name> flag, not hardcoded #defines
+  - CMake build directories are per-library (build/embeddedproto, build/nanopb, build/arduinojson)
+  - ArduinoJson is header-only - no additional source files needed in CMakeLists.txt
+  - ArduinoJson uses more RAM than protobuf libraries due to JSON document overhead
 
 ---
