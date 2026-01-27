@@ -7,6 +7,7 @@ This script orchestrates the full comparison workflow:
 2. Extract size metrics from ELF files
 3. Flash STM32 board and measure CPU cycles
 4. Collect all results into structured format
+5. Track size history and detect regressions
 
 Usage:
     python run_comparison.py                    # Run all scenarios, all libraries
@@ -14,6 +15,7 @@ Usage:
     python run_comparison.py --library embeddedproto  # Run specific library
     python run_comparison.py --report           # Generate report only
     python run_comparison.py --no-flash         # Skip flashing and cycle measurement
+    python run_comparison.py --check-regressions # Check for size regressions
 """
 
 import argparse
@@ -33,6 +35,7 @@ from build_stm32 import STM32Builder, BuildResult
 from extract_size import ELFSizeExtractor, SizeMetrics
 from flash_stm32 import STM32Flasher, FlashResult
 from measure_cycles import STM32CycleMeasurer, CycleMetrics, MeasurementResult
+from size_history import SizeHistoryTracker
 
 
 @dataclass
@@ -76,6 +79,7 @@ class ComparisonOrchestrator:
         self.size_extractor = ELFSizeExtractor()
         self.flasher = STM32Flasher()
         self.cycle_measurer = STM32CycleMeasurer()
+        self.history_tracker = SizeHistoryTracker(self.results_dir, use_sqlite=True)
         
         # Ensure directories exist
         self.results_dir.mkdir(exist_ok=True)
@@ -204,6 +208,12 @@ class ComparisonOrchestrator:
     
     def save_results(self, results: List[ComparisonResult], format: str = "json") -> Path:
         """Save comparison results to file."""
+        
+        print(f"\n{'='*60}")
+        print(f"Storing results")
+        print(f"{'='*60}\n")
+        
+        
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         
         if format == "json":
@@ -242,6 +252,39 @@ class ComparisonOrchestrator:
         
         print(f"Results saved to: {filename}")
         return filename
+    
+    def track_size_history(self, results: List[ComparisonResult]) -> Dict[str, Dict[str, float]]:
+        """Track size history and compare with previous runs."""
+        # Convert results to flat format for history tracking
+        flat_results = []
+        for result in results:
+            flat_result = {
+                'timestamp': result.timestamp,
+                'library': result.library,
+                'scenario': result.scenario,
+                'target': result.target,
+                'text_size': result.size.text if result.size else 0,
+                'data_size': result.size.data if result.size else 0,
+                'bss_size': result.size.bss if result.size else 0,
+                'total_flash': result.size.total_flash if result.size else 0,
+                'total_ram': result.size.total_ram if result.size else 0,
+                'serialize_cycles': result.cycles.serialize_cycles if result.cycles else None,
+                'deserialize_cycles': result.cycles.deserialize_cycles if result.cycles else None
+            }
+            flat_results.append(flat_result)
+        
+        # Append to history
+        self.history_tracker.append_results(flat_results)
+        
+        # Compare with previous runs
+        comparisons = self.history_tracker.compare_with_previous(flat_results)
+        
+        return comparisons
+    
+    def check_regressions(self, comparisons: Dict[str, Dict[str, float]], 
+                         threshold: float = 5.0) -> List[Dict[str, str]]:
+        """Check for size regressions exceeding threshold."""
+        return self.history_tracker.check_regressions(comparisons, threshold)
     
     def generate_report(self, results: List[ComparisonResult]) -> Path:
         """Generate human-readable comparison report."""
@@ -379,6 +422,12 @@ def main():
     parser.add_argument("--report", action="store_true", help="Generate report only")
     parser.add_argument("--no-flash", action="store_true", 
                        help="Skip flashing and cycle measurement")
+    parser.add_argument("--check-regressions", action="store_true",
+                       help="Check for size regressions against previous runs")
+    parser.add_argument("--regression-threshold", type=float, default=5.0,
+                       help="Regression threshold percentage (default: 5.0)")
+    parser.add_argument("--csv-storage", action="store_true",
+                       help="Use CSV storage instead of SQLite (default: SQLite)")
     parser.add_argument("--format", choices=["json", "csv"], default="json",
                        help="Output format for results")
     parser.add_argument("--list-scenarios", action="store_true",
@@ -390,6 +439,10 @@ def main():
     
     # Initialize orchestrator
     orchestrator = ComparisonOrchestrator()
+    orchestrator.history_tracker = SizeHistoryTracker(
+        orchestrator.results_dir, 
+        use_sqlite=not args.csv_storage
+    )
     
     # List scenarios or libraries
     if args.list_scenarios:
@@ -426,7 +479,21 @@ def main():
         )
         
         # Save results
-        orchestrator.save_results(results, format=args.format)
+        results_file = orchestrator.save_results(results, format=args.format)
+        
+        # Track size history
+        comparisons = orchestrator.track_size_history(results)
+        
+        # Check for regressions if requested
+        if args.check_regressions:
+            regressions = orchestrator.check_regressions(comparisons, args.regression_threshold)
+            if regressions:
+                print(f"\n⚠️  REGRESSIONS DETECTED ({len(regressions)}):")
+                for regression in regressions:
+                    print(f"  - {regression['library']} + {regression['scenario']}: "
+                          f"{regression['message']}")
+            else:
+                print("\n✅ No regressions detected.")
         
         # Generate report
         orchestrator.generate_report(results)
@@ -434,7 +501,8 @@ def main():
         print(f"\n=== Comparison Complete ===")
         print(f"Total comparisons run: {len(results)}")
         print(f"Successful builds: {sum(1 for r in results if r.build.success)}")
-        print(f"Results saved to: {orchestrator.results_dir}")
+        print(f"Results saved to: {results_file}")
+        print(f"Size history updated: {orchestrator.history_tracker.history_file}")
         print(f"Report generated: {orchestrator.reports_dir}")
     
     return 0

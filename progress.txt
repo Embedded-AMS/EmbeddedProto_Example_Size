@@ -21,6 +21,8 @@
 - Test scenarios are in scenarios/<name>/ with message.proto, test_data.json, expected_wire.bin
 - NanoPB options file uses dot notation: package.Message.field max_size:N
 - EmbeddedProto strings use mutable_field().set(data, len) not set_field(string)
+- Size history tracking uses SQLite by default for better query capabilities and data integrity
+- CSV storage option available for simpler use cases and portability
 
 ---
 
@@ -271,5 +273,32 @@
   - Compiler metadata is important for reproducibility
   - Error handling for missing compiler info prevents crashes
   - Report formatting should be consistent and professional
+
+---
+
+## [2026-01-27 23:00] - SCT-010 Completed
+- **What was implemented:**
+  - Created size_history.py module for tracking size changes over time
+  - Results appended to CSV file (results/size_history.csv) with timestamp
+  - Can compare current results to previous run with percentage calculations
+  - Warning system for size increases exceeding 5% threshold
+  - Integrated with existing symbol tracking infrastructure
+  - Added --check-regressions and --regression-threshold flags to run_comparison.py
+  - Automatic size history tracking in main workflow
+  - History report generation with trends analysis
+
+- **Files changed:**
+  - size_history.py - New module with SizeHistoryTracker class
+  - run_comparison.py - Added size history tracking and regression checking
+
+- **Learnings for future iterations:**
+  - Size history tracking is essential for detecting regressions over time
+  - SQLite provides better query capabilities, transactions, and data integrity
+  - CSV format is simpler and more portable for basic use cases
+  - Percentage-based regression detection (5% threshold) works well
+  - Integration with existing symbol tracker maintains consistency
+  - Always compare with previous run before appending new results
+  - History reports help visualize trends over multiple runs
+  - SQLite databases are larger but offer more advanced features
 
 ---
