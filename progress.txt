@@ -12,6 +12,10 @@
 - ARM toolchain detection should use glob patterns to find tools in STM32CubeIDE plugin directories
 - ELF size extraction uses Berkeley format output from arm-none-eabi-size (text, data, bss columns)
 - STM32 flashing uses OpenOCD with interface/stlink.cfg and target/stm32f4x.cfg configs
+- DWT cycle counter for Cortex-M4: enable TRCENA in DEMCR, then CYCCNTENA in DWT->CTRL
+- UART output via ST-Link VCP on /dev/ttyACM0 at 115200 baud
+- Use pyserial for serial port detection and communication
+- STM32 firmware runs once at startup - use OpenOCD reset to trigger new measurement
 
 ---
 
@@ -90,5 +94,37 @@
   - Board detection can use `openocd -c "init" -c "exit"` - returns 0 if board found
   - Permission issues require udev rules: /usr/share/openocd/contrib/60-openocd.rules
   - shutil.which() is the cleanest way to find tools in PATH
+
+---
+
+## [2025-01-27 15:20] - SCT-004 Completed
+- **What was implemented:**
+  - Created measure_cycles.py script to capture CPU cycle measurements via UART
+  - Auto-detects ST-Link VCP serial port (checks VID/PID and description)
+  - Supports --port, --baudrate, --timeout, --format (text/json/csv), --reset options
+  - --reset option uses OpenOCD to reset board before capturing
+  - Parses UART output for CYCLES_SERIALIZE, CYCLES_DESERIALIZE markers
+  - Returns CycleMetrics dataclass with serialize_cycles, deserialize_cycles, total_cycles
+  - Created cycle_counter.h with DWT cycle counter functions for Cortex-M4
+  - Updated eams.hpp to measure cycles for serialize/deserialize operations
+  - Updated main.cpp to initialize DWT cycle counter and output startup message
+
+- **Files changed:**
+  - measure_cycles.py - New file for UART cycle measurement capture
+  - F446RE_EmbeddedProto/Core/Inc/cycle_counter.h - New file for DWT cycle counter
+  - F446RE_EmbeddedProto/Core/Inc/eams.hpp - Added cycle measurement to test functions
+  - F446RE_EmbeddedProto/Core/Src/main.cpp - Added cycle counter init and startup message
+
+- **Learnings for future iterations:**
+  - DWT cycle counter on Cortex-M4: CoreDebug->DEMCR |= TRCENA, DWT->CTRL |= CYCCNTENA
+  - DWT->LAR register does NOT exist on STM32F446RE (removed from code)
+  - STM32 UART output format: MEASUREMENT_START/END markers with key: value pairs
+  - ST-Link VCP appears as /dev/ttyACM0 on Linux with VID 0x0483
+  - pyserial can detect ST-Link by checking port.vid and port.description
+  - Firmware outputs once at startup - need --reset to trigger new measurement
+  - OpenOCD reset command: `openocd -c "init" -c "reset run" -c "exit"`
+  - Serial port must be opened BEFORE reset to capture startup output
+  - build_stm32.py --no-generate skips proto generation but make may not rebuild if timestamps unchanged
+  - Always use --clean or manually delete .o files when source changes aren't detected
 
 ---

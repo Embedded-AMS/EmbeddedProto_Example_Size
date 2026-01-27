@@ -19,7 +19,9 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include <main.hpp>
-////////#define SIZE_TEST
+#include <cycle_counter.h>
+#include <string.h>
+//////////////////#define SIZE_TEST
 #define EAMS
 #ifdef SIZE_TEST
 #include <SizeTest.h>
@@ -96,6 +98,14 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+  
+  /* Send startup message to verify UART is working */
+  const char* startup_msg = "\r\n=== STM32 Cycle Measurement Started ===\r\n";
+  HAL_UART_Transmit(&huart2, (uint8_t*)startup_msg, strlen(startup_msg), HAL_MAX_DELAY);
+  
+  /* Initialize DWT cycle counter for CPU cycle measurement */
+  CycleCounter_Init();
+  
 #ifdef SIZE_TEST
   call_all_functions();
 #else
@@ -118,6 +128,9 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    /* Blink LED to show code is running */
+    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    HAL_Delay(500);
   }
   /* USER CODE END 3 */
 }
