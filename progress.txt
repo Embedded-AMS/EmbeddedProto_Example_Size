@@ -9,6 +9,9 @@
 - ARM toolchain is located in STM32CubeIDE plugins directory (e.g., /home/bart/st/stm32cubeide_1.4.0/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.*/tools/bin)
 - Build configuration uses -Os optimization and gc-sections for size optimization
 - The Release/ and Debug/ directories contain pre-generated makefiles from STM32CubeIDE
+- ARM toolchain detection should use glob patterns to find tools in STM32CubeIDE plugin directories
+- ELF size extraction uses Berkeley format output from arm-none-eabi-size (text, data, bss columns)
+- STM32 flashing uses OpenOCD with interface/stlink.cfg and target/stm32f4x.cfg configs
 
 ---
 
@@ -40,5 +43,52 @@
   - EmbeddedProto venv must be activated for code generation
   - Clean builds take longer due to recompiling all HAL drivers
   - main.cpp uses #define SIZE_TEST, EAMS, or neither (for nanopb) to select library
+
+---
+
+## [2025-01-27 10:30] - SCT-002 Completed
+- **What was implemented:**
+  - Updated extract_size.py to properly find ARM toolchain
+  - Script uses same toolchain detection as build_stm32.py (glob patterns for STM32CubeIDE)
+  - Supports text, JSON, and CSV output formats
+  - Returns SizeMetrics dataclass with text, data, bss, total_flash, total_ram
+  - Includes --version flag to show tool version and path
+  - Proper error handling for missing files and tools
+
+- **Files changed:**
+  - extract_size.py - Complete rewrite with toolchain detection and multiple output formats
+
+- **Learnings for future iterations:**
+  - arm-none-eabi-size Berkeley format: "text data bss dec hex filename"
+  - Total Flash = text + data (code + initialized data stored in flash)
+  - Total RAM = data + bss (initialized data copied to RAM + uninitialized data)
+  - Use dataclass with asdict() for easy dict conversion
+  - Always check if tool is available before running subprocess
+
+---
+
+## [2025-01-27 11:15] - SCT-003 Completed
+- **What was implemented:**
+  - Created flash_stm32.py script for automated STM32 flashing via USB
+  - Supports both OpenOCD and st-flash tools (auto-detection)
+  - Board detection with --detect flag
+  - Flashes ELF files directly with OpenOCD (no conversion needed)
+  - Converts ELF to BIN for st-flash using arm-none-eabi-objcopy
+  - Returns FlashResult dataclass with success status, tool used, and output
+  - Proper error handling for missing board, permission issues, and tool failures
+  - Verbose mode for debugging
+
+- **Files changed:**
+  - flash_stm32.py - New file for STM32 flashing automation
+
+- **Learnings for future iterations:**
+  - OpenOCD is preferred over st-flash because it can flash ELF files directly
+  - OpenOCD config: interface/stlink.cfg + target/stm32f4x.cfg for STM32F4 with ST-Link
+  - OpenOCD outputs to stderr, not stdout
+  - STM32F446RE flash base address is 0x08000000
+  - OpenOCD "program" command: `program <file> verify reset exit`
+  - Board detection can use `openocd -c "init" -c "exit"` - returns 0 if board found
+  - Permission issues require udev rules: /usr/share/openocd/contrib/60-openocd.rules
+  - shutil.which() is the cleanest way to find tools in PATH
 
 ---
