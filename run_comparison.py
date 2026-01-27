@@ -1,0 +1,385 @@
+#!/usr/bin/env python3
+"""
+Size Comparison Tool - Main Orchestration Script
+
+This script orchestrates the full comparison workflow:
+1. Build all libraries for selected scenario
+2. Extract size metrics from ELF files
+3. Flash STM32 board and measure CPU cycles
+4. Collect all results into structured format
+
+Usage:
+    python run_comparison.py                    # Run all scenarios, all libraries
+    python run_comparison.py --scenario simple_types  # Run specific scenario
+    python run_comparison.py --library embeddedproto  # Run specific library
+    python run_comparison.py --report           # Generate report only
+    python run_comparison.py --no-flash         # Skip flashing and cycle measurement
+"""
+
+import argparse
+import sys
+import os
+import json
+import csv
+from pathlib import Path
+from dataclasses import dataclass, asdict
+from typing import List, Dict, Optional, Any
+import subprocess
+import time
+import datetime
+
+# Import existing components
+from build_stm32 import STM32Builder, BuildResult
+from extract_size import ELFSizeExtractor, SizeMetrics
+from flash_stm32 import STM32Flasher, FlashResult
+from measure_cycles import STM32CycleMeasurer, CycleMetrics, MeasurementResult
+
+
+@dataclass
+class ComparisonResult:
+    """Complete comparison result for one library/scenario combination."""
+    library: str
+    scenario: str
+    target: str
+    build: BuildResult
+    size: Optional[SizeMetrics] = None
+    flash: Optional[FlashResult] = None
+    cycles: Optional[CycleMetrics] = None
+    timestamp: str = ""
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        result = asdict(self)
+        # Convert nested dataclasses to dicts
+        if self.build:
+            result['build'] = asdict(self.build)
+        if self.size:
+            result['size'] = asdict(self.size)
+        if self.flash:
+            result['flash'] = asdict(self.flash)
+        if self.cycles:
+            result['cycles'] = asdict(self.cycles)
+        return result
+
+
+class ComparisonOrchestrator:
+    """Main class to orchestrate size comparison workflow."""
+    
+    def __init__(self, base_dir: Optional[Path] = None):
+        self.base_dir = Path(base_dir) if base_dir else Path(__file__).parent.absolute()
+        self.scenarios_dir = self.base_dir / "scenarios"
+        self.results_dir = self.base_dir / "results"
+        self.reports_dir = self.results_dir / "reports"
+        
+        # Initialize components
+        self.builder = STM32Builder(self.base_dir)
+        self.size_extractor = ELFSizeExtractor()
+        self.flasher = STM32Flasher()
+        self.cycle_measurer = STM32CycleMeasurer()
+        
+        # Ensure directories exist
+        self.results_dir.mkdir(exist_ok=True)
+        self.reports_dir.mkdir(exist_ok=True)
+    
+    def get_available_scenarios(self) -> List[str]:
+        """Get list of available test scenarios."""
+        scenarios = []
+        if self.scenarios_dir.exists():
+            for item in self.scenarios_dir.iterdir():
+                if item.is_dir() and (item / "message.proto").exists():
+                    scenarios.append(item.name)
+        return sorted(scenarios)
+    
+    def get_available_libraries(self) -> List[str]:
+        """Get list of available libraries."""
+        return ["embeddedproto", "nanopb", "arduinojson"]
+    
+    def run_single_comparison(self, scenario: str, library: str, 
+                             target: str = "stm32", 
+                             skip_flash: bool = False) -> ComparisonResult:
+        """Run full comparison for one library/scenario combination."""
+        print(f"\n=== Running comparison: {library} + {scenario} ===")
+        
+        result = ComparisonResult(
+            library=library,
+            scenario=scenario,
+            target=target,
+            build=BuildResult(success=False, output=""),
+            timestamp=datetime.datetime.now().isoformat()
+        )
+        
+        # Step 1: Generate code (if needed)
+        print(f"Generating code for {library}...")
+        if library == "embeddedproto":
+            if not self.builder.generate_embeddedproto_code():
+                result.build = BuildResult(
+                    success=False,
+                    output="",
+                    error="EmbeddedProto code generation failed"
+                )
+                return result
+        elif library == "nanopb":
+            if not self.builder.generate_nanopb_code(scenario=scenario):
+                result.build = BuildResult(
+                    success=False,
+                    output="",
+                    error="NanoPB code generation failed"
+                )
+                return result
+        elif library == "arduinojson":
+            # ArduinoJson doesn't need code generation
+            print("ArduinoJson: No code generation needed")
+        
+        # Step 2: Build
+        print(f"Building {library} for {scenario}...")
+        build_result = self.builder.build_stm32_project(library)
+        result.build = build_result
+        
+        if not build_result.success:
+            print(f"Build failed: {build_result.error}")
+            return result
+            
+        print(f"Build successful. ELF: {build_result.elf_path}")
+        
+        # Step 2: Extract size metrics
+        if build_result.elf_path:
+            print(f"Extracting size metrics...")
+            size_result = self.size_extractor.extract_sizes(build_result.elf_path)
+            result.size = size_result
+            print(f"Size extraction successful:")
+            print(f"  Flash: {size_result.total_flash:,} bytes")
+            print(f"  RAM: {size_result.total_ram:,} bytes")
+        
+        # Step 3: Flash and measure cycles (optional)
+        if not skip_flash and build_result.elf_path:
+            print(f"Flashing to STM32...")
+            flash_result = self.flasher.flash(build_result.elf_path)
+            result.flash = flash_result
+            
+            if flash_result.success:
+                print(f"Flashing successful. Measuring CPU cycles...")
+                # Give board time to reset and start
+                time.sleep(2)
+                
+                cycle_result = self.cycle_measurer.measure()
+                if cycle_result.success and cycle_result.metrics:
+                    result.cycles = cycle_result.metrics
+                    result.cycles.library = library
+                    result.cycles.scenario = scenario
+                    print(f"Cycle measurement successful:")
+                    print(f"  Serialize: {cycle_result.metrics.serialize_cycles:,} cycles")
+                    print(f"  Deserialize: {cycle_result.metrics.deserialize_cycles:,} cycles")
+                else:
+                    print(f"Cycle measurement failed: {cycle_result.raw_output}")
+            else:
+                print(f"Flashing failed: {flash_result.error}")
+        
+        return result
+    
+    def run_all_comparisons(self, scenarios: Optional[List[str]] = None,
+                           libraries: Optional[List[str]] = None,
+                           skip_flash: bool = False) -> List[ComparisonResult]:
+        """Run comparisons for all specified scenarios and libraries."""
+        results = []
+        
+        # Get scenarios to run
+        if scenarios is None or len(scenarios) == 0:
+            scenarios = self.get_available_scenarios()
+        
+        # Get libraries to test
+        if libraries is None or len(libraries) == 0:
+            libraries = self.get_available_libraries()
+        
+        print(f"Running comparisons for {len(scenarios)} scenarios and {len(libraries)} libraries")
+        print(f"Scenarios: {', '.join(scenarios)}")
+        print(f"Libraries: {', '.join(libraries)}")
+        
+        # Run all combinations
+        for scenario in scenarios:
+            for library in libraries:
+                result = self.run_single_comparison(scenario, library, skip_flash=skip_flash)
+                results.append(result)
+        
+        return results
+    
+    def save_results(self, results: List[ComparisonResult], format: str = "json") -> Path:
+        """Save comparison results to file."""
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        if format == "json":
+            filename = self.results_dir / f"comparison_results_{timestamp}.json"
+            data = [r.to_dict() for r in results]
+            with open(filename, 'w') as f:
+                json.dump(data, f, indent=2)
+        elif format == "csv":
+            filename = self.results_dir / f"comparison_results_{timestamp}.csv"
+            with open(filename, 'w', newline='') as f:
+                writer = csv.writer(f)
+                # Write header
+                writer.writerow([
+                    "timestamp", "library", "scenario", "target",
+                    "build_success", "text_size", "data_size", "bss_size",
+                    "total_flash", "total_ram", "serialize_cycles", "deserialize_cycles"
+                ])
+                # Write data
+                for result in results:
+                    writer.writerow([
+                        result.timestamp,
+                        result.library,
+                        result.scenario,
+                        result.target,
+                        result.build.success,
+                        result.size.text if result.size else 0,
+                        result.size.data if result.size else 0,
+                        result.size.bss if result.size else 0,
+                        result.size.total_flash if result.size else 0,
+                        result.size.total_ram if result.size else 0,
+                        result.cycles.serialize_cycles if result.cycles else 0,
+                        result.cycles.deserialize_cycles if result.cycles else 0
+                    ])
+        else:
+            raise ValueError(f"Unsupported format: {format}")
+        
+        print(f"Results saved to: {filename}")
+        return filename
+    
+    def generate_report(self, results: List[ComparisonResult]) -> Path:
+        """Generate human-readable comparison report."""
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        report_file = self.reports_dir / f"comparison_report_{timestamp}.md"
+        
+        with open(report_file, 'w') as f:
+            f.write("# Size Comparison Report\n\n")
+            f.write(f"**Date**: {timestamp}\n")
+            f.write(f"**Target**: STM32F446RE\n\n")
+            
+            # Group results by scenario
+            scenarios = {}
+            for result in results:
+                if result.scenario not in scenarios:
+                    scenarios[result.scenario] = []
+                scenarios[result.scenario].append(result)
+            
+            # Summary table
+            f.write("## Summary\n\n")
+            f.write("| Library | Flash (text) | RAM (data+bss) | Serialize Cycles | Deserialize Cycles |\n")
+            f.write("|---------|--------------|----------------|------------------|---------------------|\n")
+            
+            for scenario, scenario_results in scenarios.items():
+                for result in scenario_results:
+                    if result.size and result.cycles:
+                        f.write(f"| {result.library} | {result.size.total_flash:,} bytes | "
+                               f"{result.size.total_ram:,} bytes | {result.cycles.serialize_cycles:,} | "
+                               f"{result.cycles.deserialize_cycles:,} |\n")
+            
+            f.write("\n")
+            
+            # Detailed breakdown by scenario
+            for scenario, scenario_results in scenarios.items():
+                f.write(f"## Scenario: {scenario}\n\n")
+                f.write("| Library | Flash | RAM | Serialize | Deserialize |\n")
+                f.write("|---------|-------|-----|-----------|-------------|\n")
+                
+                for result in scenario_results:
+                    if result.size:
+                        cycles_info = ""
+                        if result.cycles:
+                            cycles_info = f"{result.cycles.serialize_cycles:,} | {result.cycles.deserialize_cycles:,}"
+                        else:
+                            cycles_info = "N/A | N/A"
+                        
+                        f.write(f"| {result.library} | {result.size.total_flash:,} bytes | "
+                               f"{result.size.total_ram:,} bytes | {cycles_info} |\n")
+                
+                f.write("\n")
+            
+            # Build information
+            f.write("## Build Information\n\n")
+            for result in results:
+                if result.build:
+                    f.write(f"### {result.library} + {result.scenario}\n\n")
+                    f.write(f"- **Success**: {result.build.success}\n")
+                    if result.build.elf_path:
+                        f.write(f"- **ELF Path**: {result.build.elf_path}\n")
+                    if result.build.error:
+                        f.write(f"- **Error**: {result.build.error}\n")
+                    f.write("\n")
+        
+        print(f"Report generated: {report_file}")
+        return report_file
+
+
+def main():
+    """Main entry point."""
+    parser = argparse.ArgumentParser(
+        description="Size Comparison Tool - Automated benchmarking of EmbeddedProto vs NanoPB vs ArduinoJson"
+    )
+    parser.add_argument("--scenario", help="Specific scenario to run")
+    parser.add_argument("--library", help="Specific library to test")
+    parser.add_argument("--target", default="stm32", help="Target platform (stm32)")
+    parser.add_argument("--report", action="store_true", help="Generate report only")
+    parser.add_argument("--no-flash", action="store_true", 
+                       help="Skip flashing and cycle measurement")
+    parser.add_argument("--format", choices=["json", "csv"], default="json",
+                       help="Output format for results")
+    parser.add_argument("--list-scenarios", action="store_true",
+                       help="List available scenarios")
+    parser.add_argument("--list-libraries", action="store_true",
+                       help="List available libraries")
+    
+    args = parser.parse_args()
+    
+    # Initialize orchestrator
+    orchestrator = ComparisonOrchestrator()
+    
+    # List scenarios or libraries
+    if args.list_scenarios:
+        scenarios = orchestrator.get_available_scenarios()
+        print("Available scenarios:")
+        for scenario in scenarios:
+            print(f"  - {scenario}")
+        return 0
+    
+    if args.list_libraries:
+        libraries = orchestrator.get_available_libraries()
+        print("Available libraries:")
+        for library in libraries:
+            print(f"  - {library}")
+        return 0
+    
+    # Run comparisons
+    if not args.report:
+        # Determine scenarios to run
+        scenarios = None
+        if args.scenario:
+            scenarios = [args.scenario]
+        
+        # Determine libraries to test
+        libraries = None
+        if args.library:
+            libraries = [args.library]
+        
+        # Run all comparisons
+        results = orchestrator.run_all_comparisons(
+            scenarios=scenarios,
+            libraries=libraries,
+            skip_flash=args.no_flash
+        )
+        
+        # Save results
+        orchestrator.save_results(results, format=args.format)
+        
+        # Generate report
+        orchestrator.generate_report(results)
+        
+        print(f"\n=== Comparison Complete ===")
+        print(f"Total comparisons run: {len(results)}")
+        print(f"Successful builds: {sum(1 for r in results if r.build.success)}")
+        print(f"Results saved to: {orchestrator.results_dir}")
+        print(f"Report generated: {orchestrator.reports_dir}")
+    
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

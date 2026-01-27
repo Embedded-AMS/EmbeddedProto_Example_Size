@@ -225,3 +225,30 @@
   - ArduinoJson uses more RAM than protobuf libraries due to JSON document overhead
 
 ---
+
+## [2026-01-27 22:40] - SCT-008 Completed
+- **What was implemented:**
+  - Created run_comparison.py main orchestration script
+  - Script orchestrates full workflow: build, size extraction, flashing, cycle measurement
+  - Supports command-line arguments for scenario, library, and target selection
+  - Generates both JSON and CSV output formats
+  - Creates human-readable markdown reports with summary tables
+  - Handles all three libraries (embeddedproto, nanopb, arduinojson)
+  - Supports --no-flash option for testing without hardware
+  - Includes --list-scenarios and --list-libraries for discovery
+  - Collects all results into structured ComparisonResult dataclass
+  - Saves results with timestamps for history tracking
+
+- **Files changed:**
+  - run_comparison.py - New main orchestration script
+
+- **Learnings for future iterations:**
+  - The orchestrator pattern works well for complex workflows
+  - Dataclasses provide clean data structures for results
+  - Existing components (build, extract, flash, measure) can be reused
+  - Command-line interface should be flexible for different use cases
+  - Error handling is important at each step of the workflow
+  - Results should be saved in multiple formats (JSON, CSV, Markdown)
+  - Timestamps are essential for tracking history and regressions
+
+---
