@@ -3,7 +3,7 @@
 STM32 Build Automation Script
 
 This script automates building the EmbeddedProto test project for STM32 Nucleo.
-It handles code generation, compilation, and produces an ELF file.
+It handles code generation, compilation using CMake, and produces an ELF file.
 
 Usage:
     python build_stm32.py --library embeddedproto
@@ -20,7 +20,7 @@ import shutil
 import glob
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List
 
 
 @dataclass
@@ -33,14 +33,13 @@ class BuildResult:
 
 
 class STM32Builder:
-    """Class to handle STM32 build automation."""
+    """Class to handle STM32 build automation using CMake."""
     
     # Known locations for ARM toolchain
     ARM_TOOLCHAIN_PATHS = [
         # STM32CubeIDE installations
         "/home/bart/st/stm32cubeide_1.4.0/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.linux64_1.0.0.202410170706/tools/bin",
         "/home/bart/st/stm32cubeide_1.4.0/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.12.3.rel1.linux64_1.0.100.202403111256/tools/bin",
-        "/opt/st/stm32cubeide_1.3.0/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.7-2018-q2-update.linux64_1.0.0.201904181610/tools/bin",
         # Standard locations
         "/usr/bin",
         "/usr/local/bin",
@@ -214,11 +213,6 @@ class STM32Builder:
             
             proto_files = [proto_file]
             proto_dir = scenario_dir
-            
-            # Check for options file
-            options_file = scenario_dir / "message.options"
-            if options_file.exists():
-                print(f"  Using options file: {options_file}")
         else:
             # Generate from MessageDescriptions (legacy)
             proto_dir = self.base_dir / "MessageDescriptions"
@@ -249,63 +243,19 @@ class STM32Builder:
         print("NanoPB code generation successful")
         return True
     
-    def _update_main_cpp(self, library: str) -> bool:
-        """Update main.cpp to use the specified library."""
-        main_cpp_path = self.project_dir / "Core" / "Src" / "main.cpp"
+    def clean_build(self, library: str) -> bool:
+        """Clean the CMake build directory for a library."""
+        build_dir = self.project_dir / "build" / library
         
-        if not main_cpp_path.exists():
-            print(f"ERROR: main.cpp not found at {main_cpp_path}")
-            return False
-        
-        print(f"Configuring main.cpp for {library}...")
-        
-        with open(main_cpp_path, 'r') as f:
-            content = f.read()
-        
-        # Define patterns for each library
-        if library == "embeddedproto":
-            # Enable EAMS, disable SIZE_TEST
-            content = content.replace('#define SIZE_TEST', '//#define SIZE_TEST')
-            content = content.replace('//#define EAMS', '#define EAMS')
-            # Make sure EAMS is defined (handle case where it's already defined)
-            if '#define EAMS' not in content:
-                content = content.replace('//#define SIZE_TEST', '//#define SIZE_TEST\n#define EAMS')
-        elif library == "nanopb":
-            # Disable both SIZE_TEST and EAMS for nanopb
-            content = content.replace('#define SIZE_TEST', '//#define SIZE_TEST')
-            content = content.replace('#define EAMS', '//#define EAMS')
-        elif library == "arduinojson":
-            # For ArduinoJson, we need a different approach
-            # This would require additional code changes
-            print("WARNING: ArduinoJson configuration not fully implemented")
-            content = content.replace('#define SIZE_TEST', '//#define SIZE_TEST')
-            content = content.replace('#define EAMS', '//#define EAMS')
-        
-        with open(main_cpp_path, 'w') as f:
-            f.write(content)
-        
-        return True
-    
-    def clean_build(self, build_type: str = "Release") -> bool:
-        """Clean the build directory."""
-        build_dir = self.project_dir / build_type
-        
-        if not build_dir.exists():
-            print(f"Build directory {build_dir} does not exist")
-            return True
-        
-        print(f"Cleaning {build_type} build...")
-        result = self._run_command(["make", "clean"], cwd=build_dir)
-        
-        if result.returncode != 0:
-            print(f"Warning: Clean failed: {result.stderr}")
-            # Continue anyway, as clean failure is not critical
+        if build_dir.exists():
+            print(f"Cleaning build directory: {build_dir}")
+            shutil.rmtree(build_dir)
         
         return True
     
     def build_stm32_project(self, library: str, build_type: str = "Release", 
                             clean: bool = False) -> BuildResult:
-        """Build the STM32 project for the specified library."""
+        """Build the STM32 project for the specified library using CMake."""
         print(f"\n{'='*60}")
         print(f"Building STM32 project for {library} ({build_type})")
         print(f"{'='*60}\n")
@@ -318,40 +268,60 @@ class STM32Builder:
                 error="ARM toolchain not found"
             )
         
-        # Configure the project for the selected library
-        if not self._update_main_cpp(library):
+        # Check CMakeLists.txt exists
+        cmake_file = self.project_dir / "CMakeLists.txt"
+        if not cmake_file.exists():
             return BuildResult(
                 success=False,
                 output="",
-                error="Failed to configure main.cpp"
+                error=f"CMakeLists.txt not found at {cmake_file}"
             )
         
-        build_dir = self.project_dir / build_type
-        
-        if not build_dir.exists():
-            return BuildResult(
-                success=False,
-                output="",
-                error=f"Build directory not found: {build_dir}"
-            )
+        # Build directory per library to avoid conflicts
+        build_dir = self.project_dir / "build" / library
         
         # Clean if requested
         if clean:
-            self.clean_build(build_type)
+            self.clean_build(library)
         
-        # Build using make
-        print("Running make...")
-        result = self._run_command(
-            ["make", "-j4"],
-            cwd=build_dir
-        )
+        # Create build directory
+        build_dir.mkdir(parents=True, exist_ok=True)
         
-        # Combine stdout and stderr for output
-        output = result.stdout or ""
-        if result.stderr:
-            output += "\n" + result.stderr
+        # Run CMake configure
+        print("Running CMake configure...")
+        env = self._get_build_env()
+        
+        cmake_cmd = [
+            "cmake",
+            f"-DLIBRARY={library}",
+            f"-DCMAKE_BUILD_TYPE={build_type}",
+            str(self.project_dir)
+        ]
+        
+        result = self._run_command(cmake_cmd, cwd=build_dir, env=env)
         
         if result.returncode != 0:
+            output = (result.stdout or "") + "\n" + (result.stderr or "")
+            print(f"CMake configure failed:\n{output}")
+            return BuildResult(
+                success=False,
+                output=output,
+                error="CMake configure failed"
+            )
+        
+        # Run make
+        print("Running make...")
+        make_cmd = ["make", "-j4"]
+        
+        result = self._run_command(make_cmd, cwd=build_dir, env=env)
+        
+        # Combine stdout and stderr for output
+        output = (result.stdout or "") + "\n" + (result.stderr or "")
+        
+        print(f"Make return code: {result.returncode}")
+        
+        if result.returncode != 0:
+            print(f"Build failed with output:\n{output}")
             return BuildResult(
                 success=False,
                 output=output,
@@ -361,7 +331,15 @@ class STM32Builder:
         # Find the ELF file
         elf_path = build_dir / "EmbeddedProto_Example_Size.elf"
         
+        print(f"Looking for ELF file at: {elf_path}")
+        
         if not elf_path.exists():
+            # Check what files were created
+            print("ELF file not found. Checking what files exist in build directory:")
+            for f in build_dir.iterdir():
+                if f.is_file():
+                    print(f"  {f.name}")
+            
             return BuildResult(
                 success=False,
                 output=output,
@@ -429,7 +407,7 @@ Examples:
     python build_stm32.py --library embeddedproto
     python build_stm32.py --library nanopb --clean
     python build_stm32.py --library nanopb --scenario simple_types
-    python build_stm32.py --library embeddedproto --build-type Debug
+    python build_stm32.py --library arduinojson --build-type Debug
         """
     )
     parser.add_argument('--library', 
@@ -467,6 +445,9 @@ Examples:
                 if not builder.generate_nanopb_code(scenario=args.scenario):
                     print("Code generation failed")
                     sys.exit(1)
+            elif args.library == "arduinojson":
+                # ArduinoJson doesn't need code generation
+                print("ArduinoJson: No code generation needed")
         
         if args.generate_only:
             print("Code generation completed successfully")

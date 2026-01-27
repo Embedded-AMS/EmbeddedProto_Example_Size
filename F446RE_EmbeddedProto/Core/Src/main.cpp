@@ -21,16 +21,26 @@
 #include <main.hpp>
 #include <cycle_counter.h>
 #include <string.h>
-//////////////////#define SIZE_TEST
-#define EAMS
-#ifdef SIZE_TEST
+
+/* Library selection defines - passed via CMake compiler flags:
+ * - SIZE_TEST: For size testing (SizeTest.h)
+ * - EAMS: For EmbeddedProto testing (eams.hpp)
+ * - NANOPB: For NanoPB testing (nanopb.h)
+ * - ARDUINOJSON: For ArduinoJson testing (arduinojson.hpp)
+ * 
+ * Build with: cmake -DLIBRARY=<library_name> ..
+ * If none are defined, defaults to NanoPB for backward compatibility.
+ */
+
+#if defined(SIZE_TEST)
 #include <SizeTest.h>
-#else
-#ifdef EAMS
+#elif defined(EAMS)
 #include <eams.hpp>
+#elif defined(ARDUINOJSON)
+#include <arduinojson.hpp>
 #else
+/* Default to NanoPB for backward compatibility */
 #include <nanopb.h>
-#endif
 #endif
 /* USER CODE END Includes */
 
@@ -106,17 +116,19 @@ int main(void)
   /* Initialize DWT cycle counter for CPU cycle measurement */
   CycleCounter_Init();
   
-#ifdef SIZE_TEST
+  /* Run test functions based on selected library */
+#if defined(SIZE_TEST)
   call_all_functions();
-#else
-#ifdef EAMS
-  //test_field_sizes();
+#elif defined(EAMS)
   test_eams();
   test_eams_array();
+#elif defined(ARDUINOJSON)
+  test_arduinojson();
+  test_arduinojson_array();
 #else
+  /* Default to NanoPB */
   test_nanopb();
   test_nanopb_array();
-#endif
 #endif
 
   /* USER CODE END 2 */
