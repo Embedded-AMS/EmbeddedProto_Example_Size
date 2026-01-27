@@ -248,10 +248,16 @@ class ComparisonOrchestrator:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         report_file = self.reports_dir / f"comparison_report_{timestamp}.md"
         
+        # Get compiler version and flags
+        compiler_info = self._get_compiler_info()
+        
         with open(report_file, 'w') as f:
             f.write("# Size Comparison Report\n\n")
             f.write(f"**Date**: {timestamp}\n")
-            f.write(f"**Target**: STM32F446RE\n\n")
+            f.write(f"**Target**: STM32F446RE\n")
+            if compiler_info:
+                f.write(f"**Compiler**: {compiler_info}\n")
+            f.write("**Flags**: -std=c++17 -Os -fdata-sections -ffunction-sections -Wl,--gc-sections\n\n")
             
             # Group results by scenario
             scenarios = {}
@@ -260,36 +266,69 @@ class ComparisonOrchestrator:
                     scenarios[result.scenario] = []
                 scenarios[result.scenario].append(result)
             
-            # Summary table
+            # Summary table with percentage differences
             f.write("## Summary\n\n")
-            f.write("| Library | Flash (text) | RAM (data+bss) | Serialize Cycles | Deserialize Cycles |\n")
-            f.write("|---------|--------------|----------------|------------------|---------------------|\n")
+            f.write("| Library | Flash (text) | RAM (data+bss) | Flash % Diff | RAM % Diff | Serialize Cycles | Deserialize Cycles |\n")
+            f.write("|---------|--------------|----------------|--------------|------------|------------------|---------------------|\n")
             
             for scenario, scenario_results in scenarios.items():
+                # Find baseline (EmbeddedProto) for percentage calculation
+                baseline = None
                 for result in scenario_results:
-                    if result.size and result.cycles:
+                    if result.library == "embeddedproto" and result.size:
+                        baseline = result.size
+                        break
+                
+                for result in scenario_results:
+                    if result.size:
+                        flash_diff = "N/A"
+                        ram_diff = "N/A"
+                        
+                        if baseline:
+                            if baseline.total_flash > 0:
+                                flash_diff = f"{((result.size.total_flash - baseline.total_flash) / baseline.total_flash) * 100:+.1f}%"
+                            if baseline.total_ram > 0:
+                                ram_diff = f"{((result.size.total_ram - baseline.total_ram) / baseline.total_ram) * 100:+.1f}%"
+                        
+                        cycles_info = "N/A | N/A"
+                        if result.cycles:
+                            cycles_info = f"{result.cycles.serialize_cycles:,} | {result.cycles.deserialize_cycles:,}"
+                        
                         f.write(f"| {result.library} | {result.size.total_flash:,} bytes | "
-                               f"{result.size.total_ram:,} bytes | {result.cycles.serialize_cycles:,} | "
-                               f"{result.cycles.deserialize_cycles:,} |\n")
+                               f"{result.size.total_ram:,} bytes | {flash_diff} | {ram_diff} | {cycles_info} |\n")
             
             f.write("\n")
             
             # Detailed breakdown by scenario
             for scenario, scenario_results in scenarios.items():
                 f.write(f"## Scenario: {scenario}\n\n")
-                f.write("| Library | Flash | RAM | Serialize | Deserialize |\n")
-                f.write("|---------|-------|-----|-----------|-------------|\n")
+                f.write("| Library | Flash | RAM | Flash % Diff | RAM % Diff | Serialize | Deserialize |\n")
+                f.write("|---------|-------|-----|--------------|------------|-----------|-------------|\n")
+                
+                # Find baseline for this scenario
+                baseline = None
+                for result in scenario_results:
+                    if result.library == "embeddedproto" and result.size:
+                        baseline = result.size
+                        break
                 
                 for result in scenario_results:
                     if result.size:
-                        cycles_info = ""
+                        flash_diff = "N/A"
+                        ram_diff = "N/A"
+                        
+                        if baseline:
+                            if baseline.total_flash > 0:
+                                flash_diff = f"{((result.size.total_flash - baseline.total_flash) / baseline.total_flash) * 100:+.1f}%"
+                            if baseline.total_ram > 0:
+                                ram_diff = f"{((result.size.total_ram - baseline.total_ram) / baseline.total_ram) * 100:+.1f}%"
+                        
+                        cycles_info = "N/A | N/A"
                         if result.cycles:
                             cycles_info = f"{result.cycles.serialize_cycles:,} | {result.cycles.deserialize_cycles:,}"
-                        else:
-                            cycles_info = "N/A | N/A"
                         
                         f.write(f"| {result.library} | {result.size.total_flash:,} bytes | "
-                               f"{result.size.total_ram:,} bytes | {cycles_info} |\n")
+                               f"{result.size.total_ram:,} bytes | {flash_diff} | {ram_diff} | {cycles_info} |\n")
                 
                 f.write("\n")
             
@@ -307,6 +346,26 @@ class ComparisonOrchestrator:
         
         print(f"Report generated: {report_file}")
         return report_file
+    
+    def _get_compiler_info(self) -> str:
+        """Get ARM compiler version information."""
+        try:
+            # Try to get compiler version from ARM toolchain
+            arm_gcc_path = self.builder._find_arm_toolchain()
+            if arm_gcc_path:
+                result = subprocess.run(
+                    [str(Path(arm_gcc_path) / "arm-none-eabi-gcc"), "--version"],
+                    capture_output=True, text=True, timeout=5
+                )
+                if result.returncode == 0:
+                    # Extract version from first line
+                    lines = result.stdout.strip().split('\n')
+                    if lines:
+                        return lines[0].strip()
+        except Exception:
+            pass
+        
+        return "Unknown (ARM GCC)"
 
 
 def main():

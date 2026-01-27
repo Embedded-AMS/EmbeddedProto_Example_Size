@@ -252,3 +252,24 @@
   - Timestamps are essential for tracking history and regressions
 
 ---
+
+## [2026-01-27 22:45] - SCT-009 Completed
+- **What was implemented:**
+  - Enhanced report generation with percentage differences from baseline
+  - Added compiler version detection and metadata display
+  - Added compiler flags information to reports
+  - Percentage differences calculated as (current - baseline) / baseline * 100
+  - Positive percentages show increase, negative show decrease from baseline
+  - Reports now include all required metadata for reproducibility
+
+- **Files changed:**
+  - run_comparison.py - Enhanced generate_report() method and added _get_compiler_info()
+
+- **Learnings for future iterations:**
+  - Percentage differences are crucial for understanding relative performance
+  - Baseline should always be EmbeddedProto for fair comparison
+  - Compiler metadata is important for reproducibility
+  - Error handling for missing compiler info prevents crashes
+  - Report formatting should be consistent and professional
+
+---
