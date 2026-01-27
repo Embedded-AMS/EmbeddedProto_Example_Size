@@ -173,8 +173,14 @@ class STM32Builder:
         print("EmbeddedProto code generation successful")
         return True
     
-    def generate_nanopb_code(self) -> bool:
-        """Generate NanoPB code from proto files."""
+    def generate_nanopb_code(self, scenario: Optional[str] = None) -> bool:
+        """Generate NanoPB code from proto files.
+        
+        Args:
+            scenario: Optional scenario name (e.g., 'simple_types'). If provided,
+                     generates from scenarios/<scenario>/message.proto with options.
+                     If None, generates from MessageDescriptions/*.proto.
+        """
         print("Generating NanoPB code...")
         
         # Ensure output directory exists
@@ -193,13 +199,37 @@ class STM32Builder:
             print(f"ERROR: nanopb plugin not found at {nanopb_plugin}")
             return False
         
-        # Find proto files
-        proto_dir = self.base_dir / "MessageDescriptions"
-        proto_files = list(proto_dir.glob("*.proto"))
+        # Determine proto files to generate
+        if scenario:
+            # Generate from scenario directory
+            scenario_dir = self.base_dir / "scenarios" / scenario
+            if not scenario_dir.exists():
+                print(f"ERROR: Scenario directory not found: {scenario_dir}")
+                return False
+            
+            proto_file = scenario_dir / "message.proto"
+            if not proto_file.exists():
+                print(f"ERROR: Proto file not found: {proto_file}")
+                return False
+            
+            proto_files = [proto_file]
+            proto_dir = scenario_dir
+            
+            # Check for options file
+            options_file = scenario_dir / "message.options"
+            if options_file.exists():
+                print(f"  Using options file: {options_file}")
+        else:
+            # Generate from MessageDescriptions (legacy)
+            proto_dir = self.base_dir / "MessageDescriptions"
+            proto_files = list(proto_dir.glob("*.proto"))
+            
+            if not proto_files:
+                print("ERROR: No proto files found in MessageDescriptions/")
+                return False
         
-        if not proto_files:
-            print("ERROR: No proto files found in MessageDescriptions/")
-            return False
+        # Use venv environment for NanoPB generator (needs protobuf Python library)
+        env = self._get_venv_env()
         
         for proto_file in proto_files:
             print(f"  Generating from {proto_file.name}...")
@@ -211,7 +241,7 @@ class STM32Builder:
                 str(proto_file)
             ]
             
-            result = self._run_command(cmd, cwd=self.base_dir)
+            result = self._run_command(cmd, cwd=self.base_dir, env=env)
             if result.returncode != 0:
                 print(f"ERROR generating NanoPB code: {result.stderr}")
                 return False
@@ -398,6 +428,7 @@ def main():
 Examples:
     python build_stm32.py --library embeddedproto
     python build_stm32.py --library nanopb --clean
+    python build_stm32.py --library nanopb --scenario simple_types
     python build_stm32.py --library embeddedproto --build-type Debug
         """
     )
@@ -418,6 +449,8 @@ Examples:
     parser.add_argument('--no-generate',
                         action='store_true',
                         help='Skip code generation')
+    parser.add_argument('--scenario',
+                        help='Scenario name (e.g., simple_types) for code generation from scenarios/ directory')
     
     args = parser.parse_args()
     
@@ -431,7 +464,7 @@ Examples:
                     print("Code generation failed")
                     sys.exit(1)
             elif args.library == "nanopb":
-                if not builder.generate_nanopb_code():
+                if not builder.generate_nanopb_code(scenario=args.scenario):
                     print("Code generation failed")
                     sys.exit(1)
         

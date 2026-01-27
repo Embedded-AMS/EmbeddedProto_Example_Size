@@ -167,3 +167,31 @@
   - Test code compilation: g++ -std=c++17 -c -I <include_paths> <source>.cpp
 
 ---
+
+## [2025-01-27 22:00] - SCT-006 Completed
+- **What was implemented:**
+  - Updated nanopb.h with cycle measurement support matching eams.hpp pattern
+  - Added populate_nanopb_message() function with test data values
+  - Added test_nanopb() function with serialize/deserialize cycle measurement
+  - Added test_nanopb_array() function for array benchmarking
+  - Updated build_stm32.py to support --scenario option for NanoPB code generation
+  - Added venv environment for NanoPB generator (needs protobuf Python library)
+  - Verified build, flash, and cycle measurement all work for NanoPB
+
+- **Files changed:**
+  - F446RE_EmbeddedProto/Core/Inc/nanopb.h - Complete rewrite with cycle measurement
+  - build_stm32.py - Added --scenario option and venv support for NanoPB generator
+
+- **Test Results:**
+  - NanoPB simple_types: Flash=14,804 bytes, RAM=13,380 bytes
+  - Serialize: 9,143 cycles, Deserialize: 12,723 cycles
+
+- **Learnings for future iterations:**
+  - NanoPB generator requires protobuf Python library - use venv environment
+  - NanoPB message fields are plain C structs - use memset() to clear, not .clear()
+  - NanoPB uses pb_ostream_from_buffer() and pb_istream_from_buffer() for streams
+  - NanoPB encode/decode return bool status, not error codes
+  - Test data values should match scenarios/simple_types/test_data.json for consistency
+  - The makefile includes NanoPB sources from generated/Nanopb/ directory
+
+---
