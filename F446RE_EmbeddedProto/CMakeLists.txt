@@ -183,6 +183,7 @@ elseif(LIBRARY STREQUAL "nanopb")
         ${BASE_DIR}/Nanopb/pb_encode.c
         ${BASE_DIR}/Nanopb/pb_decode.c
         ${BASE_DIR}/generated/Nanopb/simple_types.pb.c
+        ${BASE_DIR}/generated/Nanopb/message.pb.c
     )
     # ArduinoJson is header-only, no additional sources needed
 endif()

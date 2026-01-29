@@ -11,10 +11,11 @@ You are an autonomous coding agent working on a software project.
 5. Implement that single user story
 6. Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
 7. Update AGENTS.md files if you discover reusable patterns (see below)
-8. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
-9. Update the PRD to set `passes: true` for the completed story
-10. Append your progress to `progress.txt`
-11. Stop after completing one task.
+8. If checks pass, pause and ask the user for feedback. Process the feedback and ask again for feedback.  
+9. If there is no feedback commit ALL changes with message: `feat: [Story ID] - [Story Title]`. Only commit files that actually changed.
+10. Update the PRD to set `passes: true` for the completed story
+11. Append your progress to `progress.txt`
+12. Stop after completing one task.
 
 ## Progress Report Format
 

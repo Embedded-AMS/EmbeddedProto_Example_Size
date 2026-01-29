@@ -122,13 +122,16 @@ int main(void)
 #elif defined(EAMS)
   test_eams();
   test_eams_array();
+  test_eams_nested();
 #elif defined(ARDUINOJSON)
   test_arduinojson();
   test_arduinojson_array();
+  test_arduinojson_nested();
 #else
   /* Default to NanoPB */
   test_nanopb();
   test_nanopb_array();
+  test_nanopb_nested();
 #endif
 
   /* USER CODE END 2 */

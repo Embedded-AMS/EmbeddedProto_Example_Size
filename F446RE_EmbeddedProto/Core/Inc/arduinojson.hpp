@@ -146,4 +146,109 @@ void test_arduinojson_array()
     CycleCounter_OutputResults(&measurement);
 }
 
+// ============================================================================
+// Nested Message Scenario Test Functions
+// ============================================================================
+
+/* JSON document instance for nested message (larger capacity) */
+StaticJsonDocument<768> nestedJsonDoc;
+
+/**
+ * @brief Populate inner object with test data
+ */
+static inline void populate_nested_inner_json(JsonObject& inner, int32_t value, const char* name)
+{
+    inner["value"] = value;
+    inner["name"] = name;
+}
+
+/**
+ * @brief Populate middle object with test data
+ */
+static inline void populate_nested_middle_json(JsonObject& middle, float x, float y, float z,
+                                               int32_t inner_value, const char* inner_name,
+                                               const int32_t* values, size_t values_count)
+{
+    middle["x"] = x;
+    middle["y"] = y;
+    middle["z"] = z;
+    
+    JsonObject inner = middle.createNestedObject("inner");
+    populate_nested_inner_json(inner, inner_value, inner_name);
+    
+    JsonArray valuesArray = middle.createNestedArray("values");
+    for (size_t i = 0; i < values_count; i++) {
+        valuesArray.add(values[i]);
+    }
+}
+
+/**
+ * @brief Populate JSON document with nested message test data (must match test_data.json)
+ */
+static inline void populate_nested_document(JsonDocument& d)
+{
+    d.clear();
+    
+    d["id"] = 42;
+    d["label"] = "Test Outer Message";
+    
+    // Middle message
+    JsonObject middle = d.createNestedObject("middle");
+    const int32_t middle_values[] = {10, 20, 30, 40, 50};
+    populate_nested_middle_json(middle, 1.5f, 2.5f, 3.5f, 100, "Inner1", middle_values, 5);
+    
+    // Items (repeated MiddleMessage)
+    JsonArray items = d.createNestedArray("items");
+    
+    JsonObject item1 = items.createNestedObject();
+    const int32_t item1_values[] = {1, 2, 3};
+    populate_nested_middle_json(item1, 4.0f, 5.0f, 6.0f, 200, "Inner2", item1_values, 3);
+    
+    JsonObject item2 = items.createNestedObject();
+    const int32_t item2_values[] = {4, 5};
+    populate_nested_middle_json(item2, 7.0f, 8.0f, 9.0f, 300, "Inner3", item2_values, 2);
+}
+
+/**
+ * @brief Test ArduinoJson nested message serialization/deserialization with cycle measurement
+ */
+void test_arduinojson_nested()
+{
+    /* Set up test data */
+    populate_nested_document(nestedJsonDoc);
+
+    /* Prepare buffers (larger for nested JSON) */
+    constexpr uint32_t NESTED_BUFFER_SIZE = 512;
+    uint8_t obuffer[NESTED_BUFFER_SIZE];
+    uint8_t ibuffer[NESTED_BUFFER_SIZE];
+    
+    /* Measure serialize cycles */
+    uint32_t start_serialize = CycleCounter_Start();
+    size_t serialized_size = serializeJson(nestedJsonDoc, obuffer, sizeof(obuffer));
+    uint32_t serialize_cycles = CycleCounter_Elapsed(start_serialize);
+    
+    /* Copy serialized data to input buffer for deserialization */
+    memcpy(ibuffer, obuffer, serialized_size);
+    
+    /* Clear document before deserialize to ensure we're actually reading */
+    nestedJsonDoc.clear();
+    
+    /* Measure deserialize cycles */
+    uint32_t start_deserialize = CycleCounter_Start();
+    DeserializationError error = deserializeJson(nestedJsonDoc, ibuffer, serialized_size);
+    uint32_t deserialize_cycles = CycleCounter_Elapsed(start_deserialize);
+    
+    /* Prevent unused variable warnings */
+    (void)error;
+    
+    /* Output results via UART */
+    CycleMeasurement measurement = {
+        .serialize_cycles = serialize_cycles,
+        .deserialize_cycles = deserialize_cycles,
+        .library = "ArduinoJson",
+        .scenario = "nested_message"
+    };
+    CycleCounter_OutputResults(&measurement);
+}
+
 #endif /* INC_ARDUINOJSON_HPP_ */

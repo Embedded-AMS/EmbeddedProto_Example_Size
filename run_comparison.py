@@ -115,7 +115,7 @@ class ComparisonOrchestrator:
         # Step 1: Generate code (if needed)
         print(f"Generating code for {library}...")
         if library == "embeddedproto":
-            if not self.builder.generate_embeddedproto_code():
+            if not self.builder.generate_embeddedproto_code(scenario=scenario):
                 result.build = BuildResult(
                     success=False,
                     output="",

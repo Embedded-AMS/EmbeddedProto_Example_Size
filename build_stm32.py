@@ -136,8 +136,14 @@ class STM32Builder:
         print(f"ARM GCC version: {version_line}")
         return True
     
-    def generate_embeddedproto_code(self) -> bool:
-        """Generate EmbeddedProto code from proto files."""
+    def generate_embeddedproto_code(self, scenario: Optional[str] = None) -> bool:
+        """Generate EmbeddedProto code from proto files.
+        
+        Args:
+            scenario: Optional scenario name (e.g., 'nested_message'). If provided,
+                     generates from scenarios/<scenario>/message.proto.
+                     If None, generates from MessageDescriptions/*.proto.
+        """
         print("Generating EmbeddedProto code...")
         
         # Ensure output directory exists
@@ -147,13 +153,29 @@ class STM32Builder:
         # Get the virtual environment
         env = self._get_venv_env()
         
-        # Find proto files
-        proto_dir = self.base_dir / "MessageDescriptions"
-        proto_files = list(proto_dir.glob("*.proto"))
-        
-        if not proto_files:
-            print("ERROR: No proto files found in MessageDescriptions/")
-            return False
+        # Determine proto files to generate
+        if scenario:
+            # Generate from scenario directory
+            scenario_dir = self.base_dir / "scenarios" / scenario
+            if not scenario_dir.exists():
+                print(f"ERROR: Scenario directory not found: {scenario_dir}")
+                return False
+            
+            proto_file = scenario_dir / "message.proto"
+            if not proto_file.exists():
+                print(f"ERROR: Proto file not found: {proto_file}")
+                return False
+            
+            proto_files = [proto_file]
+            proto_dir = scenario_dir
+        else:
+            # Generate from MessageDescriptions (legacy)
+            proto_dir = self.base_dir / "MessageDescriptions"
+            proto_files = list(proto_dir.glob("*.proto"))
+            
+            if not proto_files:
+                print("ERROR: No proto files found in MessageDescriptions/")
+                return False
         
         for proto_file in proto_files:
             print(f"  Generating from {proto_file.name}...")
@@ -227,13 +249,24 @@ class STM32Builder:
         
         for proto_file in proto_files:
             print(f"  Generating from {proto_file.name}...")
+            
+            # Check for options file
+            options_file = proto_file.with_suffix('.options')
+            
             cmd = [
                 str(protoc_path),
                 f"--plugin=protoc-gen-nanopb={nanopb_plugin}",
                 f"-I{proto_dir}",
+            ]
+            
+            # Add options file if it exists
+            if options_file.exists():
+                cmd.append(f"--nanopb_opt=-f{options_file}")
+            
+            cmd.extend([
                 f"--nanopb_out={nanopb_output}",
                 str(proto_file)
-            ]
+            ])
             
             result = self._run_command(cmd, cwd=self.base_dir, env=env)
             if result.returncode != 0:

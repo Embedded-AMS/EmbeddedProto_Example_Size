@@ -1,0 +1,60 @@
+/*
+ *  Copyright (C) 2020-2024 Embedded AMS B.V. - All Rights Reserved
+ *
+ *  This file is part of Embedded Proto.
+ *
+ *  Embedded Proto is open source software: you can redistribute it and/or 
+ *  modify it under the terms of the GNU General Public License as published 
+ *  by the Free Software Foundation, version 3 of the license.
+ *
+ *  Embedded Proto  is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Embedded Proto. If not, see <https://www.gnu.org/licenses/>.
+ *
+ *  For commercial and closed source application please visit:
+ *  <https://EmbeddedProto.com/license/>.
+ *
+ *  Embedded AMS B.V.
+ *  Info:
+ *    info at EmbeddedProto dot com
+ *
+ *  Postal address:
+ *    Atoomweg 2
+ *    1627 LE, Hoorn
+ *    the Netherlands
+ */
+
+// Test scenario: nested_message
+// Contains 2-3 levels of message nesting with repeated fields
+// for measuring nesting overhead in size comparison benchmarking.
+
+syntax = "proto3";
+
+package nested_message;
+
+// Level 3: Innermost message
+message InnerMessage {
+  int32 value = 1;
+  string name = 2;  // max 16 chars for embedded
+}
+
+// Level 2: Middle message with repeated field
+message MiddleMessage {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+  InnerMessage inner = 4;
+  repeated int32 values = 5;  // max 5 elements for embedded
+}
+
+// Level 1: Outer message (root)
+message OuterMessage {
+  int32 id = 1;
+  string label = 2;  // max 32 chars for embedded
+  MiddleMessage middle = 3;
+  repeated MiddleMessage items = 4;  // max 3 elements for embedded
+}

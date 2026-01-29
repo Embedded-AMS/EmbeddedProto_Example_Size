@@ -1,0 +1,4 @@
+nested_message.InnerMessage.name max_size:16
+nested_message.MiddleMessage.values max_count:5
+nested_message.OuterMessage.label max_size:32
+nested_message.OuterMessage.items max_count:3

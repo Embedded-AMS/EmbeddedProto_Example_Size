@@ -9,11 +9,12 @@
 #define INC_EAMS_HPP_
 
 #include "../../../../generated/EAMS/simple_types.h"
-#include "../../../../generated/EAMS/nested_message.h"
+#include "../../../../generated/EAMS/message.h"
 #include "../../../../EmbeddedProto/src/WriteBufferFixedSize.h"
 #include "../../../../EmbeddedProto/src/ReadBufferFixedSize.h"
 #include "cycle_counter.h"
 #include <string>
+#include <string.h>
 
 constexpr uint8_t N = 100;
 
@@ -208,10 +209,132 @@ void test_eams_array()
   CycleCounter_OutputResults(&measurement);
 }
 
-demo::space::message_c<3,3> msg_c;
-void test_message_c()
+// ============================================================================
+// Nested Message Scenario Test Functions
+// ============================================================================
+
+// Template parameters for nested_message scenario
+constexpr uint32_t INNER_NAME_SIZE = 16;
+constexpr uint32_t MIDDLE_VALUES_SIZE = 5;
+constexpr uint32_t OUTER_LABEL_SIZE = 32;
+constexpr uint32_t OUTER_ITEMS_SIZE = 3;
+
+// Type aliases for nested_message
+// OuterMessage template parameters:
+// - OuterMessage_label_LENGTH
+// - OuterMessage_middle_MiddleMessage_inner_InnerMessage_name_LENGTH
+// - OuterMessage_middle_MiddleMessage_values_REP_LENGTH
+// - OuterMessage_items_REP_LENGTH
+// - OuterMessage_items_MiddleMessage_inner_InnerMessage_name_LENGTH
+// - OuterMessage_items_MiddleMessage_values_REP_LENGTH
+using InnerMsg = nested_message::InnerMessage<INNER_NAME_SIZE>;
+using MiddleMsg = nested_message::MiddleMessage<INNER_NAME_SIZE, MIDDLE_VALUES_SIZE>;
+using OuterMsg = nested_message::OuterMessage<
+    OUTER_LABEL_SIZE,           // label length
+    INNER_NAME_SIZE,            // middle.inner.name length
+    MIDDLE_VALUES_SIZE,         // middle.values count
+    OUTER_ITEMS_SIZE,           // items count
+    INNER_NAME_SIZE,            // items[].inner.name length
+    MIDDLE_VALUES_SIZE          // items[].values count
+>;
+
+// Nested message instance
+OuterMsg nested_msg;
+
+/**
+ * @brief Populate inner message with test data
+ */
+static inline void populate_inner(InnerMsg& inner, int32_t value, const char* name)
 {
-  msg_c.clear();
+    inner.set_value(value);
+    inner.mutable_name().set(name, strlen(name));
+}
+
+/**
+ * @brief Populate middle message with test data
+ */
+static inline void populate_middle(MiddleMsg& middle, float x, float y, float z, 
+                                   int32_t inner_value, const char* inner_name,
+                                   const int32_t* values, size_t values_count)
+{
+    middle.set_x(x);
+    middle.set_y(y);
+    middle.set_z(z);
+    populate_inner(middle.mutable_inner(), inner_value, inner_name);
+    
+    for (size_t i = 0; i < values_count; i++) {
+        middle.add_values(values[i]);
+    }
+}
+
+/**
+ * @brief Populate nested message with test data (must match test_data.json)
+ */
+static inline void populate_nested_message(OuterMsg& m)
+{
+    m.set_id(42);
+    m.mutable_label().set("Test Outer Message", 18);
+    
+    // Middle message
+    const int32_t middle_values[] = {10, 20, 30, 40, 50};
+    populate_middle(m.mutable_middle(), 1.5f, 2.5f, 3.5f, 100, "Inner1", 
+                   middle_values, 5);
+    
+    // Items (repeated MiddleMessage)
+    // Create item1 and add to repeated field
+    MiddleMsg item1;
+    const int32_t item1_values[] = {1, 2, 3};
+    populate_middle(item1, 4.0f, 5.0f, 6.0f, 200, "Inner2", item1_values, 3);
+    m.add_items(item1);
+    
+    // Create item2 and add to repeated field
+    MiddleMsg item2;
+    const int32_t item2_values[] = {4, 5};
+    populate_middle(item2, 7.0f, 8.0f, 9.0f, 300, "Inner3", item2_values, 2);
+    m.add_items(item2);
+}
+
+/**
+ * @brief Test EmbeddedProto nested message serialization/deserialization with cycle measurement
+ */
+void test_eams_nested()
+{
+    // Set up test data
+    populate_nested_message(nested_msg);
+
+    // Prepare buffers (larger for nested message)
+    constexpr uint32_t NESTED_BUFFER_SIZE = 256;
+    ::EmbeddedProto::WriteBufferFixedSize<NESTED_BUFFER_SIZE> wbuffer;
+    ::EmbeddedProto::ReadBufferFixedSize<NESTED_BUFFER_SIZE> rbuffer;
+    
+    // Measure serialize cycles
+    uint32_t start_serialize = CycleCounter_Start();
+    nested_msg.serialize(wbuffer);
+    uint32_t serialize_cycles = CycleCounter_Elapsed(start_serialize);
+
+    // Copy serialized data to read buffer for deserialization
+    const uint8_t* data = wbuffer.get_data();
+    uint32_t size = wbuffer.get_size();
+    for (uint32_t i = 0; i < size; i++) {
+        rbuffer.push(data[i]);
+    }
+
+    // Clear message before deserialize to ensure we're actually reading
+    nested_msg.clear();
+
+    // Measure deserialize cycles
+    uint32_t start_deserialize = CycleCounter_Start();
+    nested_msg.deserialize(rbuffer);
+    uint32_t deserialize_cycles = CycleCounter_Elapsed(start_deserialize);
+
+    // Output results via UART
+    CycleMeasurement measurement = {
+        .serialize_cycles = serialize_cycles,
+        .deserialize_cycles = deserialize_cycles,
+        .library = "EmbeddedProto",
+        .scenario = "nested_message"
+    };
+    CycleCounter_OutputResults(&measurement);
 }
 
 #endif /* INC_EAMS_HPP_ */
