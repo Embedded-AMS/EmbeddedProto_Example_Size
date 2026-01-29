@@ -145,22 +145,43 @@ class ComparisonOrchestrator:
             
         print(f"Build successful. ELF: {build_result.elf_path}")
         
-        # Step 2: Extract size metrics
+        # Step 3: Extract size metrics
         if build_result.elf_path:
             print(f"Extracting size metrics...")
-            size_result = self.size_extractor.extract_sizes(build_result.elf_path)
-            result.size = size_result
-            print(f"Size extraction successful:")
-            print(f"  Flash: {size_result.total_flash:,} bytes")
-            print(f"  RAM: {size_result.total_ram:,} bytes")
+            try:
+                size_result = self.size_extractor.extract_sizes(build_result.elf_path)
+                result.size = size_result
+                print(f"Size extraction successful:")
+                print(f"  Flash: {size_result.total_flash:,} bytes")
+                print(f"  RAM: {size_result.total_ram:,} bytes")
+            except Exception as e:
+                print(f"Size extraction failed: {e}")
+                result.build = BuildResult(
+                    success=False,
+                    output="",
+                    error=f"Size extraction failed: {e}"
+                )
+                return result
+        else:
+            print("ERROR: No ELF file path provided from build")
+            result.build = BuildResult(
+                success=False,
+                output="",
+                error="No ELF file path from build"
+            )
+            return result
         
-        # Step 3: Flash and measure cycles (optional)
+        # Step 4: Flash and measure cycles (optional)
         if not skip_flash and build_result.elf_path:
             print(f"Flashing to STM32...")
             flash_result = self.flasher.flash(build_result.elf_path)
             result.flash = flash_result
             
-            if flash_result.success:
+            if not flash_result.success:
+                print(f"Flashing failed: {flash_result.error}")
+                # Don't return here - flashing failure shouldn't stop the whole process
+                # since we already have size metrics
+            else:
                 print(f"Flashing successful. Measuring CPU cycles...")
                 # Give board time to reset and start
                 time.sleep(2)
@@ -175,8 +196,8 @@ class ComparisonOrchestrator:
                     print(f"  Deserialize: {cycle_result.metrics.deserialize_cycles:,} cycles")
                 else:
                     print(f"Cycle measurement failed: {cycle_result.raw_output}")
-            else:
-                print(f"Flashing failed: {flash_result.error}")
+                    # Don't return here - cycle measurement failure shouldn't stop the whole process
+                    # since we already have size metrics
         
         return result
     
@@ -285,6 +306,10 @@ class ComparisonOrchestrator:
                          threshold: float = 5.0) -> List[Dict[str, str]]:
         """Check for size regressions exceeding threshold."""
         return self.history_tracker.check_regressions(comparisons, threshold)
+    
+    def check_all_successful(self, results: List[ComparisonResult]) -> bool:
+        """Check if all comparisons were successful."""
+        return all(result.build.success for result in results)
     
     def generate_report(self, results: List[ComparisonResult]) -> Path:
         """Generate human-readable comparison report."""
@@ -450,7 +475,10 @@ def main():
         print("Available scenarios:")
         for scenario in scenarios:
             print(f"  - {scenario}")
-        return 0
+        if not args.report:
+            return 0
+        else:
+            return 0
     
     if args.list_libraries:
         libraries = orchestrator.get_available_libraries()
@@ -478,10 +506,28 @@ def main():
             skip_flash=args.no_flash
         )
         
-        # Save results
+        # Check if all comparisons were successful
+        all_successful = orchestrator.check_all_successful(results)
+        
+        if not all_successful:
+            print(f"\n❌ ERROR: Some comparisons failed!")
+            print(f"Successful: {sum(1 for r in results if r.build.success)}/{len(results)}")
+            
+            # Show which ones failed
+            failed_results = [r for r in results if not r.build.success]
+            for failed in failed_results:
+                error_msg = failed.build.error or "Unknown error"
+                print(f"  - {failed.library} + {failed.scenario}: {error_msg}")
+            
+            # Do not save results or generate reports when there are failures
+            print(f"\n⚠️  Not saving results or generating reports due to failures.")
+            print(f"Please fix the issues and run again.")
+            return 1
+        
+        # Save results (only if all successful)
         results_file = orchestrator.save_results(results, format=args.format)
         
-        # Track size history
+        # Track size history (only if all successful)
         comparisons = orchestrator.track_size_history(results)
         
         # Check for regressions if requested
@@ -495,7 +541,7 @@ def main():
             else:
                 print("\n✅ No regressions detected.")
         
-        # Generate report
+        # Generate report (only if all successful)
         orchestrator.generate_report(results)
         
         print(f"\n=== Comparison Complete ===")

@@ -302,3 +302,29 @@
   - SQLite databases are larger but offer more advanced features
 
 ---
+
+## [2026-01-28 10:30] - SCT-013 Completed
+- **What was implemented:**
+  - Enhanced error handling in run_comparison.py to stop execution when critical failures occur
+  - Added check_all_successful() method to verify all comparisons completed successfully
+  - Modified main workflow to detect failures and prevent saving results/reports when errors occur
+  - Improved error propagation with detailed failure messages showing which library/scenario combinations failed
+  - Graceful termination with clear error messages and exit code 1 for failures
+  - Verified existing scripts (build_stm32.py, extract_size.py, flash_stm32.py, measure_cycles.py) already have proper error handling
+  - Added proper exception handling for size extraction failures
+  - Ensured build failures, code generation failures, and size extraction failures all trigger graceful termination
+
+- **Files changed:**
+  - run_comparison.py - Enhanced error handling, added check_all_successful() method, modified main workflow
+
+- **Learnings for future iterations:**
+  - Critical failures should stop the entire workflow to prevent misleading results
+  - Error handling should be implemented at each step of the workflow
+  - Clear error messages help users understand what went wrong and how to fix it
+  - Exit codes are important for CI/CD integration and script automation
+  - Graceful termination prevents partial or incorrect results from being saved
+  - Individual component scripts already have good error handling - focus on orchestration layer
+  - Exception handling should be specific and provide meaningful error messages
+  - Error detection should happen early to avoid wasting time on subsequent steps
+
+---
