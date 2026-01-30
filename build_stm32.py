@@ -136,76 +136,97 @@ class STM32Builder:
         print(f"ARM GCC version: {version_line}")
         return True
     
-    def generate_embeddedproto_code(self, scenario: Optional[str] = None) -> bool:
-        """Generate EmbeddedProto code from proto files.
+    def generate_embeddedproto_code(self, scenario: str) -> bool:
+        """Generate EmbeddedProto code for a specific scenario.
         
         Args:
-            scenario: Optional scenario name (e.g., 'nested_message'). If provided,
-                     generates from scenarios/<scenario>/message.proto.
-                     If None, generates from MessageDescriptions/*.proto.
+            scenario: Scenario name (e.g., 'simple_types', 'nested_message')
+        
+        Returns:
+            True if code generation successful
         """
-        print("Generating EmbeddedProto code...")
+        print(f"Generating EmbeddedProto code for scenario: {scenario}")
         
-        # Ensure output directory exists
-        eams_output = self.generated_dir / "EAMS"
-        eams_output.mkdir(parents=True, exist_ok=True)
+        # Validate scenario
+        if not scenario:
+            print("ERROR: Scenario must be specified")
+            return False
         
-        # Get the virtual environment
-        env = self._get_venv_env()
-        
-        # Determine proto files to generate
-        if scenario:
-            # Generate from scenario directory
+        # Get scenario directory - try both old and new locations for backward compatibility
+        scenario_dir = self.base_dir / "F446RE_EmbeddedProto" / "Core" / "scenarios" / scenario
+        if not scenario_dir.exists():
+            # Fallback to old location for backward compatibility
             scenario_dir = self.base_dir / "scenarios" / scenario
             if not scenario_dir.exists():
                 print(f"ERROR: Scenario directory not found: {scenario_dir}")
                 return False
-            
+        
+        # Find proto file
+        # Try both old and new naming conventions for backward compatibility
+        proto_file = scenario_dir / f"{scenario}.proto"
+        if not proto_file.exists():
+            # Fallback to old naming convention
             proto_file = scenario_dir / "message.proto"
             if not proto_file.exists():
-                print(f"ERROR: Proto file not found: {proto_file}")
-                return False
-            
-            proto_files = [proto_file]
-            proto_dir = scenario_dir
-        else:
-            # Generate from MessageDescriptions (legacy)
-            proto_dir = self.base_dir / "MessageDescriptions"
-            proto_files = list(proto_dir.glob("*.proto"))
-            
-            if not proto_files:
-                print("ERROR: No proto files found in MessageDescriptions/")
+                print(f"ERROR: Proto file not found: {scenario_dir}/{scenario}.proto or {scenario_dir}/message.proto")
                 return False
         
-        for proto_file in proto_files:
-            print(f"  Generating from {proto_file.name}...")
-            cmd = [
-                "embeddedproto",
-                f"-I{proto_dir}",
-                f"--eams_out={eams_output}",
-                str(proto_file)
-            ]
-            
-            result = self._run_command(cmd, cwd=self.base_dir, env=env)
-            if result.returncode != 0:
-                print(f"ERROR generating EmbeddedProto code: {result.stderr}")
-                return False
+        # Create scenario-specific output directory
+        scenario_output = self.generated_dir / "EAMS" / scenario
+        scenario_output.mkdir(parents=True, exist_ok=True)
         
-        print("EmbeddedProto code generation successful")
+        # Generate code
+        print(f"  Generating from {proto_file.name}...")
+        cmd = [
+            "embeddedproto",
+            f"-I{scenario_dir}",
+            f"--eams_out={scenario_output}",
+            str(proto_file)
+        ]
+        
+        env = self._get_venv_env()
+        result = self._run_command(cmd, cwd=self.base_dir, env=env)
+        if result.returncode != 0:
+            print(f"ERROR generating EmbeddedProto code: {result.stderr}")
+            return False
+        
+        print(f"EmbeddedProto code generation successful for {scenario}")
         return True
     
-    def generate_nanopb_code(self, scenario: Optional[str] = None) -> bool:
-        """Generate NanoPB code from proto files.
+    def generate_nanopb_code(self, scenario: str) -> bool:
+        """Generate NanoPB code for a specific scenario.
         
         Args:
-            scenario: Optional scenario name (e.g., 'simple_types'). If provided,
-                     generates from scenarios/<scenario>/message.proto with options.
-                     If None, generates from MessageDescriptions/*.proto.
-        """
-        print("Generating NanoPB code...")
+            scenario: Scenario name (e.g., 'simple_types', 'nested_message')
         
-        # Ensure output directory exists
-        nanopb_output = self.generated_dir / "Nanopb"
+        Returns:
+            True if code generation successful
+        """
+        print(f"Generating NanoPB code for scenario: {scenario}")
+        
+        # Validate scenario
+        if not scenario:
+            print("ERROR: Scenario must be specified")
+            return False
+        
+        # Get scenario directory
+        scenario_dir = self.base_dir / "scenarios" / scenario
+        if not scenario_dir.exists():
+            print(f"ERROR: Scenario directory not found: {scenario_dir}")
+            return False
+        
+        # Find proto file
+        # Try both old and new naming conventions for backward compatibility
+        proto_file = scenario_dir / f"{scenario}.proto"
+        if not proto_file.exists():
+            # Fallback to old naming convention
+            proto_file = scenario_dir / "message.proto"
+            if not proto_file.exists():
+                print(f"ERROR: Proto file not found: {scenario_dir}/{scenario}.proto or {scenario_dir}/message.proto")
+                return False
+        
+        # Create scenario-specific output directory
+        nanopb_output = self.generated_dir / "Nanopb" / scenario
         nanopb_output.mkdir(parents=True, exist_ok=True)
         
         # Find protoc
@@ -220,60 +241,34 @@ class STM32Builder:
             print(f"ERROR: nanopb plugin not found at {nanopb_plugin}")
             return False
         
-        # Determine proto files to generate
-        if scenario:
-            # Generate from scenario directory
-            scenario_dir = self.base_dir / "scenarios" / scenario
-            if not scenario_dir.exists():
-                print(f"ERROR: Scenario directory not found: {scenario_dir}")
-                return False
-            
-            proto_file = scenario_dir / "message.proto"
-            if not proto_file.exists():
-                print(f"ERROR: Proto file not found: {proto_file}")
-                return False
-            
-            proto_files = [proto_file]
-            proto_dir = scenario_dir
-        else:
-            # Generate from MessageDescriptions (legacy)
-            proto_dir = self.base_dir / "MessageDescriptions"
-            proto_files = list(proto_dir.glob("*.proto"))
-            
-            if not proto_files:
-                print("ERROR: No proto files found in MessageDescriptions/")
-                return False
+        # Check for options file
+        options_file = proto_file.with_suffix('.options')
         
         # Use venv environment for NanoPB generator (needs protobuf Python library)
         env = self._get_venv_env()
         
-        for proto_file in proto_files:
-            print(f"  Generating from {proto_file.name}...")
-            
-            # Check for options file
-            options_file = proto_file.with_suffix('.options')
-            
-            cmd = [
-                str(protoc_path),
-                f"--plugin=protoc-gen-nanopb={nanopb_plugin}",
-                f"-I{proto_dir}",
-            ]
-            
-            # Add options file if it exists
-            if options_file.exists():
-                cmd.append(f"--nanopb_opt=-f{options_file}")
-            
-            cmd.extend([
-                f"--nanopb_out={nanopb_output}",
-                str(proto_file)
-            ])
-            
-            result = self._run_command(cmd, cwd=self.base_dir, env=env)
-            if result.returncode != 0:
-                print(f"ERROR generating NanoPB code: {result.stderr}")
-                return False
+        print(f"  Generating from {proto_file.name}...")
+        cmd = [
+            str(protoc_path),
+            f"--plugin=protoc-gen-nanopb={nanopb_plugin}",
+            f"-I{scenario_dir}",
+        ]
         
-        print("NanoPB code generation successful")
+        # Add options file if it exists
+        if options_file.exists():
+            cmd.append(f"--nanopb_opt=-f{options_file}")
+        
+        cmd.extend([
+            f"--nanopb_out={nanopb_output}",
+            str(proto_file)
+        ])
+        
+        result = self._run_command(cmd, cwd=self.base_dir, env=env)
+        if result.returncode != 0:
+            print(f"ERROR generating NanoPB code: {result.stderr}")
+            return False
+        
+        print(f"NanoPB code generation successful for {scenario}")
         return True
     
     def clean_build(self, library: str) -> bool:
@@ -286,12 +281,21 @@ class STM32Builder:
         
         return True
     
-    def build_stm32_project(self, library: str, build_type: str = "Release", 
+    def build_stm32_project(self, library: str, scenario: str, 
+                            build_type: str = "Release", 
                             clean: bool = False) -> BuildResult:
-        """Build the STM32 project for the specified library using CMake."""
+        """Build the STM32 project for the specified library and scenario using CMake."""
         print(f"\n{'='*60}")
-        print(f"Building STM32 project for {library} ({build_type})")
+        print(f"Building STM32 project for {library} + {scenario} ({build_type})")
         print(f"{'='*60}\n")
+        
+        # Validate scenario
+        if not scenario:
+            return BuildResult(
+                success=False,
+                output="",
+                error="Scenario must be specified"
+            )
         
         # Check toolchain
         if not self.check_toolchain():
@@ -310,12 +314,14 @@ class STM32Builder:
                 error=f"CMakeLists.txt not found at {cmake_file}"
             )
         
-        # Build directory per library to avoid conflicts
-        build_dir = self.project_dir / "build" / library
+        # Build directory per library and scenario to avoid conflicts
+        build_dir = self.project_dir / "build" / library / scenario
         
         # Clean if requested
         if clean:
-            self.clean_build(library)
+            if build_dir.exists():
+                print(f"Cleaning build directory: {build_dir}")
+                shutil.rmtree(build_dir)
         
         # Create build directory
         build_dir.mkdir(parents=True, exist_ok=True)
@@ -327,6 +333,7 @@ class STM32Builder:
         cmake_cmd = [
             "cmake",
             f"-DLIBRARY={library}",
+            f"-DSCENARIO={scenario}",
             f"-DCMAKE_BUILD_TYPE={build_type}",
             str(self.project_dir)
         ]
@@ -461,7 +468,8 @@ Examples:
                         action='store_true',
                         help='Skip code generation')
     parser.add_argument('--scenario',
-                        help='Scenario name (e.g., simple_types) for code generation from scenarios/ directory')
+                        required=True,
+                        help='Scenario name (e.g., simple_types, nested_message)')
     
     args = parser.parse_args()
     
@@ -471,11 +479,11 @@ Examples:
         # Generate code if needed
         if not args.no_generate:
             if args.library == "embeddedproto":
-                if not builder.generate_embeddedproto_code():
+                if not builder.generate_embeddedproto_code(args.scenario):
                     print("Code generation failed")
                     sys.exit(1)
             elif args.library == "nanopb":
-                if not builder.generate_nanopb_code(scenario=args.scenario):
+                if not builder.generate_nanopb_code(args.scenario):
                     print("Code generation failed")
                     sys.exit(1)
             elif args.library == "arduinojson":
@@ -489,6 +497,7 @@ Examples:
         # Build the project
         build_result = builder.build_stm32_project(
             args.library,
+            scenario=args.scenario,
             build_type=args.build_type,
             clean=args.clean
         )

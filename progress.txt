@@ -328,3 +328,59 @@
   - Error detection should happen early to avoid wasting time on subsequent steps
 
 ---
+
+## [2026-01-29 22:00] - SCT-011 In Progress
+- **What was implemented:**
+  - Removed legacy MessageDescriptions directory and code generation logic
+  - Updated code generation to be scenario-specific with unique output directories
+  - Renamed proto files from message.proto to <scenario>.proto for better organization
+  - Created scenario-specific test files for both simple_types and nested_message scenarios
+  - Updated CMakeLists.txt to support scenario selection via -DSCENARIO=<name>
+  - Updated build_stm32.py to require scenario parameter and generate code per scenario
+  - Updated main.cpp to include scenario-specific test files based on SCENARIO_* defines
+  - Added proper conditional compilation to test files to only include relevant library headers
+  - Updated orchestration script to pass scenario parameter to build system
+
+- **Files changed:**
+  - build_stm32.py - Complete rewrite for scenario-specific code generation
+  - F446RE_EmbeddedProto/CMakeLists.txt - Added scenario support and defines
+  - F446RE_EmbeddedProto/Core/Src/main.cpp - Updated to include scenario-specific test files
+  - scenarios/simple_types/simple_types.proto - Renamed from message.proto
+  - scenarios/nested_message/nested_message.proto - Renamed from message.proto
+  - scenarios/simple_types/test_simple_types.cpp - New scenario-specific test file
+  - scenarios/nested_message/test_nested_message.cpp - New scenario-specific test file
+  - MessageDescriptions/ - Removed legacy directory
+
+- **Current status:**
+  - Code generation working correctly for both EmbeddedProto and NanoPB
+  - CMake configuration working with scenario selection
+  - Build system correctly creates scenario-specific build directories
+  - Test files include proper conditional compilation
+  - Current issue: Compilation errors due to API mismatches in test code
+
+- **Current issue:**
+  - The generated EmbeddedProto class has a different API than expected
+  - Class name is SimpleTypes (not Test_Simple_Types as error suggests)
+  - Need to fix test code to match actual generated API
+  - Issues include: field access methods, enum names, cycle counter function names
+
+- **To reproduce current issue:**
+  ```bash
+  cd /home/bart/EAMS/EmbeddedProto_Example_Size
+  python3 build_stm32.py --library embeddedproto --scenario simple_types --clean
+  ```
+
+- **Expected behavior:**
+  - Build should complete successfully
+  - Generate ELF file in build/embeddedproto/simple_types/
+  - All compilation errors should be resolved
+
+- **Next steps needed:**
+  - Fix test code to match actual generated API
+  - Verify enum names and field access methods
+  - Fix cycle counter function calls
+  - Test all three libraries (embeddedproto, nanopb, arduinojson)
+  - Test both scenarios (simple_types, nested_message)
+  - Update SCT-011 to passes=true once working
+
+---

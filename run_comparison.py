@@ -115,7 +115,7 @@ class ComparisonOrchestrator:
         # Step 1: Generate code (if needed)
         print(f"Generating code for {library}...")
         if library == "embeddedproto":
-            if not self.builder.generate_embeddedproto_code(scenario=scenario):
+            if not self.builder.generate_embeddedproto_code(scenario):
                 result.build = BuildResult(
                     success=False,
                     output="",
@@ -123,7 +123,7 @@ class ComparisonOrchestrator:
                 )
                 return result
         elif library == "nanopb":
-            if not self.builder.generate_nanopb_code(scenario=scenario):
+            if not self.builder.generate_nanopb_code(scenario):
                 result.build = BuildResult(
                     success=False,
                     output="",
@@ -136,7 +136,7 @@ class ComparisonOrchestrator:
         
         # Step 2: Build
         print(f"Building {library} for {scenario}...")
-        build_result = self.builder.build_stm32_project(library)
+        build_result = self.builder.build_stm32_project(library, scenario)
         result.build = build_result
         
         if not build_result.success:

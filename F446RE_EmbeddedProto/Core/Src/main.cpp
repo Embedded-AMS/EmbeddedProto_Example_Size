@@ -28,7 +28,11 @@
  * - NANOPB: For NanoPB testing (nanopb.h)
  * - ARDUINOJSON: For ArduinoJson testing (arduinojson.hpp)
  * 
- * Build with: cmake -DLIBRARY=<library_name> ..
+ * Scenario selection defines:
+ * - SCENARIO_simple_types: For simple_types scenario
+ * - SCENARIO_nested_message: For nested_message scenario
+ * 
+ * Build with: cmake -DLIBRARY=<library_name> -DSCENARIO=<scenario_name> ..
  * If none are defined, defaults to NanoPB for backward compatibility.
  */
 
@@ -41,6 +45,19 @@
 #else
 /* Default to NanoPB for backward compatibility */
 #include <nanopb.h>
+#endif
+
+/* Declare scenario-specific test functions */
+#ifdef SCENARIO_simple_types
+void test_embeddedproto_simple_types();
+void test_nanopb_simple_types();
+void test_arduinojson_simple_types();
+#elif defined(SCENARIO_nested_message)
+void test_embeddedproto_nested_message();
+void test_nanopb_nested_message();
+void test_arduinojson_nested_message();
+#else
+#error "No scenario defined - use -DSCENARIO=<scenario_name>"
 #endif
 /* USER CODE END Includes */
 
@@ -116,22 +133,34 @@ int main(void)
   /* Initialize DWT cycle counter for CPU cycle measurement */
   CycleCounter_Init();
   
-  /* Run test functions based on selected library */
+  /* Run test functions based on selected library and scenario */
 #if defined(SIZE_TEST)
   call_all_functions();
 #elif defined(EAMS)
-  test_eams();
-  test_eams_array();
-  test_eams_nested();
+  #ifdef SCENARIO_simple_types
+  test_embeddedproto_simple_types();
+  #elif defined(SCENARIO_nested_message)
+  test_embeddedproto_nested_message();
+  #else
+  #error "No scenario defined for EmbeddedProto"
+  #endif
 #elif defined(ARDUINOJSON)
-  test_arduinojson();
-  test_arduinojson_array();
-  test_arduinojson_nested();
+  #ifdef SCENARIO_simple_types
+  test_arduinojson_simple_types();
+  #elif defined(SCENARIO_nested_message)
+  test_arduinojson_nested_message();
+  #else
+  #error "No scenario defined for ArduinoJson"
+  #endif
 #else
   /* Default to NanoPB */
-  test_nanopb();
-  test_nanopb_array();
-  test_nanopb_nested();
+  #ifdef SCENARIO_simple_types
+  test_nanopb_simple_types();
+  #elif defined(SCENARIO_nested_message)
+  test_nanopb_nested_message();
+  #else
+  #error "No scenario defined for NanoPB"
+  #endif
 #endif
 
   /* USER CODE END 2 */

@@ -74,7 +74,14 @@ set(CMAKE_CXX_STANDARD 17)
 set(LIBRARY "arduinojson" CACHE STRING "Library to test: embeddedproto, nanopb, arduinojson")
 set_property(CACHE LIBRARY PROPERTY STRINGS embeddedproto nanopb arduinojson)
 
+# Scenario selection (required)
+set(SCENARIO "" CACHE STRING "Scenario to test: simple_types, nested_message")
+if(NOT SCENARIO)
+    message(FATAL_ERROR "SCENARIO must be defined. Use -DSCENARIO=<scenario_name>")
+endif()
+
 message(STATUS "Building for library: ${LIBRARY}")
+message(STATUS "Building for scenario: ${SCENARIO}")
 
 # Base directory
 set(BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
@@ -110,6 +117,15 @@ elseif(LIBRARY STREQUAL "arduinojson")
     add_definitions(-DARDUINOJSON)
 endif()
 
+# Set scenario-specific define
+if(SCENARIO STREQUAL "simple_types")
+    add_definitions(-DSCENARIO_simple_types)
+elseif(SCENARIO STREQUAL "nested_message")
+    add_definitions(-DSCENARIO_nested_message)
+else()
+    message(FATAL_ERROR "Unknown scenario: ${SCENARIO}")
+endif()
+
 # Include directories (common)
 set(INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc
@@ -123,12 +139,12 @@ set(INCLUDE_DIRS
 if(LIBRARY STREQUAL "embeddedproto")
     list(APPEND INCLUDE_DIRS
         ${BASE_DIR}/EmbeddedProto/src
-        ${BASE_DIR}/generated/EAMS
+        ${BASE_DIR}/generated/EAMS/${SCENARIO}
     )
 elseif(LIBRARY STREQUAL "nanopb")
     list(APPEND INCLUDE_DIRS
         ${BASE_DIR}/Nanopb
-        ${BASE_DIR}/generated/Nanopb
+        ${BASE_DIR}/generated/Nanopb/${SCENARIO}
     )
 elseif(LIBRARY STREQUAL "arduinojson")
     list(APPEND INCLUDE_DIRS
@@ -182,10 +198,20 @@ elseif(LIBRARY STREQUAL "nanopb")
         ${BASE_DIR}/Nanopb/pb_common.c
         ${BASE_DIR}/Nanopb/pb_encode.c
         ${BASE_DIR}/Nanopb/pb_decode.c
-        ${BASE_DIR}/generated/Nanopb/simple_types.pb.c
-        ${BASE_DIR}/generated/Nanopb/message.pb.c
+        ${BASE_DIR}/generated/Nanopb/${SCENARIO}/message.pb.c
     )
     # ArduinoJson is header-only, no additional sources needed
+endif()
+
+# Scenario-specific test sources
+if(SCENARIO STREQUAL "simple_types")
+    list(APPEND SOURCES
+        ${BASE_DIR}/scenarios/simple_types/test_simple_types.cpp
+    )
+elseif(SCENARIO STREQUAL "nested_message")
+    list(APPEND SOURCES
+        ${BASE_DIR}/scenarios/nested_message/test_nested_message.cpp
+    )
 endif()
 
 # Create executable
