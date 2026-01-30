@@ -7,6 +7,3 @@
 [submodule "Nanopb"]
 	path = Nanopb
 	url = https://github.com/nanopb/nanopb.git
-[submodule "GoolgeProtobuf"]
-	path = GoolgeProtobuf
-	url = https://github.com/protocolbuffers/protobuf.git
