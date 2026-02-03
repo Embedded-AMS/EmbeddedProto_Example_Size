@@ -50,6 +50,11 @@ target_include_directories(scenario_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../Firmware/Nucleo-F446RE/Drivers/CMSIS/Include
 )
 
+# For EmbeddedProto scenarios, add the EmbeddedProto source directory
+if(LIBRARY STREQUAL "EmbeddedProto")
+    target_include_directories(scenario_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../External/EmbeddedProto/src)
+endif()
+
 # Set ARM-specific compiler flags for scenario code
 target_compile_options(scenario_lib PRIVATE
 )

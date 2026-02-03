@@ -1,7 +1,7 @@
 #include <cstdint>
 
 // NanoPB test scenario
-extern "C" void run_scenario() {
+void run_scenario() {
     // This would contain NanoPB specific scenario code
     // For now, just a simple implementation
     volatile uint32_t counter = 0;

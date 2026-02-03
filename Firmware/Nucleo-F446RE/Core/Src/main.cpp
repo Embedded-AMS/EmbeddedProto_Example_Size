@@ -56,7 +56,7 @@ static void MX_GPIO_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 // Forward declaration for scenario function
-extern "C" void run_scenario();
+void run_scenario();
 
 /* USER CODE END 0 */
 
