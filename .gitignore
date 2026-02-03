@@ -5,11 +5,9 @@
 
 # The generated and build results.
 build/
-generated/
-F446RE_EmbeddedProto/Debug
-F446RE_EmbeddedProto/Release
-tmp/
-results/
+Generated/*.h 
+Generated/*.cpp
+Generated/*.c
 
 # Node artifact files
 node_modules/

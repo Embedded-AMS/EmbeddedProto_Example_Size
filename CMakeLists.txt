@@ -40,6 +40,6 @@ if(NOT LIBRARY OR NOT SCENARIO)
 endif()
 
 # Add subdirectories
-add_subdirectory(Firmware/Nucleo-F446RE)
-add_subdirectory(Scenarios)
 add_subdirectory(Generated)
+add_subdirectory(Scenarios)
+add_subdirectory(Firmware/Nucleo-F446RE)

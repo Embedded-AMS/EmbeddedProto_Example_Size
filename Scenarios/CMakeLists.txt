@@ -30,6 +30,15 @@ endif()
 # Create scenario library target
 add_library(scenario_lib STATIC ${SCENARIO_SOURCE})
 
+# Code is generated at configure time, so just link against generated_code library
+if(LIBRARY STREQUAL "EmbeddedProto")
+    # Link against the generated EmbeddedProto headers
+    target_link_libraries(scenario_lib PUBLIC generated_code)
+elseif(LIBRARY STREQUAL "NanoPB")
+    # Link against the generated NanoPB code and NanoPB runtime
+    target_link_libraries(scenario_lib PUBLIC generated_code)
+endif()
+
 # Set include directories for the scenario
 target_include_directories(scenario_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/${LIBRARY}

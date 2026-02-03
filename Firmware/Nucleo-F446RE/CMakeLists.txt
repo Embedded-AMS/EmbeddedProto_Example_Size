@@ -60,8 +60,11 @@ target_sources(nucleo_f446re_app PRIVATE
 # Link with scenario library (defined in Scenarios/CMakeLists.txt)
 target_link_libraries(nucleo_f446re_app PRIVATE scenario_lib)
 
-# Link with generated code (defined in Generated/CMakeLists.txt)
-target_link_libraries(nucleo_f446re_app PRIVATE generated_code)
+# Link with generated code (defined in Generated/CMakeLists.txt) if it exists
+# Only EmbeddedProto and NanoPB create generated_code library
+if(TARGET generated_code)
+    target_link_libraries(nucleo_f446re_app PRIVATE generated_code)
+endif()
 
 # Set output directory and .elf suffix
 set_target_properties(nucleo_f446re_app PROPERTIES
