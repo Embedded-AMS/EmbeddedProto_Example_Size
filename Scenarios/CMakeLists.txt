@@ -6,7 +6,7 @@ if(NOT LIBRARY OR NOT SCENARIO)
 endif()
 
 # Define valid library options
-set(VALID_LIBRARIES "ArduinoJson" "EmbeddedProto" "NanoPB")
+set(VALID_LIBRARIES "ArduinoJson" "EmbeddedProto" "NanoPB" "Baseline")
 
 # Validate LIBRARY parameter
 list(FIND VALID_LIBRARIES ${LIBRARY} LIBRARY_INDEX)
@@ -35,6 +35,10 @@ target_include_directories(scenario_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/${LIBRARY}
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../Generated
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Firmware/Nucleo-F446RE/Core/Inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Firmware/Nucleo-F446RE/Drivers/STM32F4xx_HAL_Driver/Inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Firmware/Nucleo-F446RE/Drivers/CMSIS/Device/ST/STM32F4xx/Include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Firmware/Nucleo-F446RE/Drivers/CMSIS/Include
 )
 
 # Set ARM-specific compiler flags for scenario code
@@ -45,6 +49,7 @@ target_compile_options(scenario_lib PRIVATE
 target_compile_definitions(scenario_lib PRIVATE
     SCENARIO_LIBRARY="${LIBRARY}"
     SCENARIO_NAME="${SCENARIO}"
+    STM32F446xx
 )
 
 # Set output directory
