@@ -13,12 +13,9 @@ if(GENERATED_HEADERS OR GENERATED_SOURCES)
         ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
-    # Set ARM-specific compiler flags for generated code
+    # Set compiler flags for generated code (using standard compiler for size analysis)
     target_compile_options(generated_code PRIVATE
-        -mcpu=cortex-m4
-        -mthumb
-        -mfpu=fpv4-sp-d16
-        -mfloat-abi=hard
+        -std=c++17
     )
 
     # Set output directory

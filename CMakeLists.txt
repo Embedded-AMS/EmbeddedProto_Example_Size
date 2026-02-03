@@ -1,7 +1,17 @@
 cmake_minimum_required(VERSION 3.10)
 
+# ARM toolchain configuration - must be set BEFORE project()
+set(CMAKE_SYSTEM_NAME Generic)
+set(CMAKE_SYSTEM_PROCESSOR arm)
+set(CMAKE_C_COMPILER arm-none-eabi-gcc)
+set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
+set(CMAKE_ASM_COMPILER arm-none-eabi-gcc)
+
+# Prevent CMake from testing the compilers (cross-compilation)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+
 # Project configuration
-project(EmbeddedProto_Example_Size CXX C)
+project(EmbeddedProto_Example_Size CXX C ASM)
 
 # Set default build type to Release, but allow Debug
 if(NOT CMAKE_BUILD_TYPE)
@@ -13,9 +23,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# ARM toolchain configuration
-set(CMAKE_SYSTEM_NAME Generic)
-set(CMAKE_SYSTEM_PROCESSOR arm)
+# Cortex-M4 specific flags for STM32F446RE
+set(CPU_FLAGS "-mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CPU_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPU_FLAGS}")
+set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} ${CPU_FLAGS}")
 
 # Command line parameters for scenario selection
 set(LIBRARY "" CACHE STRING "Library subfolder to select scenario from (ArduinoJson, EmbeddedProto, NanoPB)")

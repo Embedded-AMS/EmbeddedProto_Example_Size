@@ -39,10 +39,6 @@ target_include_directories(scenario_lib PUBLIC
 
 # Set ARM-specific compiler flags for scenario code
 target_compile_options(scenario_lib PRIVATE
-    -mcpu=cortex-m4
-    -mthumb
-    -mfpu=fpv4-sp-d16
-    -mfloat-abi=hard
 )
 
 # Add definitions for the selected scenario
