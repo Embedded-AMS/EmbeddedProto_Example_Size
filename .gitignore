@@ -9,6 +9,9 @@ Generated/*.h
 Generated/*.cpp
 Generated/*.c
 
+# Python virtual environments
+venv/
+
 # Node artifact files
 node_modules/
 dist/

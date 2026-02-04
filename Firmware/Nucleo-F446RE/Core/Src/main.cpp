@@ -143,8 +143,11 @@ int main(void)
     // Measure memory usage after scenario and store result
     g_dynamic_memory_used = measure_memory_usage();
 
-    // Small delay to prevent tight looping
-    HAL_Delay(100);
+    // Infinite loop
+    while(true)
+    {
+      asm("nop");
+    }
   }
   /* USER CODE END 3 */
 }
@@ -265,27 +268,29 @@ void initialize_memory_watermark()
 
 /**
   * @brief Measure how much of the free memory was used (stack high water mark)
-  *        Scans from top of memory downward to find first overwritten location
-  * @retval uint32_t: Number of bytes used from stack (peak stack usage)
+  *        Scans from end of watermarked region downward to find first overwritten location
+  * @retval uint32_t: Total peak stack usage from _estack (includes STACK_MARGIN)
   */
 uint32_t measure_memory_usage()
 {
     // Get memory boundaries from linker symbols
     uint32_t* start = _end;
-    uint32_t* end = (uint32_t*)_estack;
+    // End of watermarked region (same boundary as initialize_memory_watermark)
+    uint32_t* watermark_end = (uint32_t*)(((uint32_t)_estack) - STACK_MARGIN);
     
-    // Scan from top of memory (stack) downward to find first overwritten location
-    for(uint32_t* ptr = end - 1; ptr >= start; ptr--)
+    // Scan from end of watermarked region downward to find first overwritten location
+    for(uint32_t* ptr = watermark_end - 1; ptr >= start; ptr--)
     {
         if(*ptr != MEMORY_WATERMARK_PATTERN)
         {
-            // Found overwritten memory, calculate peak stack usage
+            // Found overwritten memory, calculate total stack usage from _estack
+            // This includes the STACK_MARGIN plus the distance into the watermarked region
             return (uint32_t)_estack - (uint32_t)ptr;
         }
     }
     
-    // No overwritten memory found
-    return 0;
+    // No overwritten memory found - stack stayed within STACK_MARGIN
+    return STACK_MARGIN;
 }
 
 /**
