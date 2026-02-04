@@ -93,6 +93,20 @@ FillZerobss:
 LoopFillZerobss:
   cmp r2, r4
   bcc FillZerobss
+
+/* Initialize watermark section with distinctive pattern */
+  ldr r0, =_watermark_start
+  ldr r1, =_watermark_end
+  ldr r2, =0xA5A5A5A5
+  b LoopFillWatermark
+
+FillWatermark:
+  str r2, [r0]
+  adds r0, r0, #4
+
+LoopFillWatermark:
+  cmp r0, r1
+  bcc FillWatermark
   
 /* Call static constructors */
     bl __libc_init_array

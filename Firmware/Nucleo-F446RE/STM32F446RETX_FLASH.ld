@@ -175,6 +175,17 @@ SECTIONS
     . = ALIGN(8);
   } >RAM
 
+  /* Watermark section - fills unused RAM with distinctive pattern for stack usage measurement */
+  .watermark :
+  {
+    . = ALIGN(4);
+    PROVIDE ( _watermark_start = . );
+    /* Fill remaining RAM with watermark pattern */
+    . = ORIGIN(RAM) + LENGTH(RAM) - .;
+    PROVIDE ( _watermark_end = . );
+    PROVIDE ( _watermark_size = _watermark_end - _watermark_start );
+  } >RAM = 0xA5A5A5A5
+
   /* Remove information from the compiler libraries */
   /DISCARD/ :
   {

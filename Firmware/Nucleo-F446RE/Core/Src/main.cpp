@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <cstdint>
+#include "core_cm4.h"  // For CoreDebug and DWT register definitions
 
 /* USER CODE END Includes */
 
@@ -45,15 +46,11 @@
 /* USER CODE BEGIN PV */
 // Linker symbols for memory boundaries (declared as arrays to avoid size warnings)
 extern "C" {
-    extern uint32_t _end[];      // End of BSS section, start of free memory
-    extern uint32_t _estack[];   // Top of stack (end of RAM)
+    extern uint32_t _end[];          // End of BSS section, start of free memory
+    extern uint32_t _estack[];       // Top of stack (end of RAM)
+    extern uint32_t _watermark_start[]; // Start of watermark section
+    extern uint32_t _watermark_end[];   // End of watermark section
 }
-
-// Watermark pattern for memory tracking
-#define MEMORY_WATERMARK_PATTERN 0xA5A5A5A5
-
-// Stack margin to avoid overwriting current stack frame
-#define STACK_MARGIN 512
 
 // Global variable to store stack usage result (accessible via SWD)
 volatile uint32_t g_stack_usage = 0;
@@ -128,8 +125,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    // Initialize memory watermark before scenario
-    initialize_memory_watermark();
 
     // Reset cycle counter and capture start value
     DWT->CYCCNT = 0;
@@ -247,50 +242,33 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-/**
-  * @brief Initialize free memory region with distinctive watermark pattern
-  *        Fills memory from end of BSS to current stack pointer minus margin
-  * @retval None
-  */
-void initialize_memory_watermark()
-{
-    // Get memory boundaries from linker symbols
-    uint32_t* start = _end;
-    // Leave margin below current stack pointer to avoid corrupting current stack frame
-    uint32_t* end = (uint32_t*)(((uint32_t)_estack) - STACK_MARGIN);
-    
-    // Fill free memory region with watermark pattern
-    for(uint32_t* ptr = start; ptr < end; ptr++)
-    {
-        *ptr = MEMORY_WATERMARK_PATTERN;
-    }
-}
 
 /**
   * @brief Measure how much of the free memory was used (stack high water mark)
-  *        Scans from end of watermarked region downward to find first overwritten location
-  * @retval uint32_t: Total peak stack usage from _estack (includes STACK_MARGIN)
+  *        Scans from end of watermark section downward to find first overwritten location
+  * @retval uint32_t: Total peak stack usage from _estack (accurate measurement)
   */
 uint32_t measure_memory_usage()
 {
-    // Get memory boundaries from linker symbols
-    uint32_t* start = _end;
-    // End of watermarked region (same boundary as initialize_memory_watermark)
-    uint32_t* watermark_end = (uint32_t*)(((uint32_t)_estack) - STACK_MARGIN);
-    
-    // Scan from end of watermarked region downward to find first overwritten location
-    for(uint32_t* ptr = watermark_end - 1; ptr >= start; ptr--)
+    // Get watermark boundaries from linker symbols
+    uint32_t* start = _watermark_start;
+    uint32_t* end = _watermark_end;
+
+    // Watermark pattern is 0xA5A5A5A5 as defined in linker script
+    const uint32_t WATERMARK_PATTERN = 0xA5A5A5A5;
+
+    // Scan from end of watermark region downward to find first overwritten location
+    for(uint32_t* ptr = end - 1; ptr >= start; ptr--)
     {
-        if(*ptr != MEMORY_WATERMARK_PATTERN)
+        if(*ptr != WATERMARK_PATTERN)
         {
             // Found overwritten memory, calculate total stack usage from _estack
-            // This includes the STACK_MARGIN plus the distance into the watermarked region
             return (uint32_t)_estack - (uint32_t)ptr;
         }
     }
-    
-    // No overwritten memory found - stack stayed within STACK_MARGIN
-    return STACK_MARGIN;
+
+    // No overwritten memory found - stack usage is minimal
+    return (uint32_t)_estack - (uint32_t)start;
 }
 
 /**
