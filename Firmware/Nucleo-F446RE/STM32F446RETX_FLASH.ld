@@ -175,6 +175,17 @@ SECTIONS
     . = ALIGN(8);
   } >RAM
 
+  /* Heap watermark section - placed right after heap for heap usage measurement */
+  .heap_watermark :
+  {
+    . = ALIGN(4);
+    PROVIDE ( _heap_watermark_start = . );
+    /* Allocate space for heap watermark (same size as heap) */
+    . = . + _Min_Heap_Size;
+    PROVIDE ( _heap_watermark_end = . );
+    PROVIDE ( _heap_watermark_size = _heap_watermark_end - _heap_watermark_start );
+  } >RAM = 0x5A5A5A5A
+
   /* Watermark section - fills unused RAM with distinctive pattern for stack usage measurement */
   .watermark :
   {

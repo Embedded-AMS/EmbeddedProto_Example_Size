@@ -50,6 +50,7 @@ class StaticSizes:
 class DynamicMetrics:
     """Data class to hold dynamic metrics from device."""
     stack_usage_bytes: Optional[int]
+    heap_usage_bytes: Optional[int]
     cpu_cycles: Optional[int]
 
 @dataclass
@@ -68,6 +69,7 @@ class BenchmarkResult:
     flash_usage_bytes: int
     static_ram_usage_bytes: int
     stack_usage_bytes: Optional[int]
+    heap_usage_bytes: Optional[int]
     cpu_cycles: Optional[int]
     library_commit_hash: str
     library_branch: Optional[str]
@@ -665,6 +667,7 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
 
         # Parse symbol addresses
         g_stack_usage_addr = None
+        g_heap_usage_addr = None
         g_cpu_cycles_used_addr = None
 
         for line in nm_result.stdout.split('\n'):
@@ -682,6 +685,8 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
                         address = int(parts[1].strip())
                         if symbol_name == 'g_stack_usage':
                             g_stack_usage_addr = address
+                        elif symbol_name == 'g_heap_usage':
+                            g_heap_usage_addr = address
                         elif symbol_name == 'g_cpu_cycles_used':
                             g_cpu_cycles_used_addr = address
                     except ValueError:
@@ -693,15 +698,21 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
                     symbol_name = parts[-1]
                     if symbol_name == 'g_stack_usage':
                         g_stack_usage_addr = int(parts[0])
+                    elif symbol_name == 'g_heap_usage':
+                        g_heap_usage_addr = int(parts[0])
                     elif symbol_name == 'g_cpu_cycles_used':
                         g_cpu_cycles_used_addr = int(parts[0])
 
         if g_stack_usage_addr is None or g_cpu_cycles_used_addr is None:
             print("Warning: Could not find required symbols in ELF file")
-            return DynamicMetrics(stack_usage_bytes=None, cpu_cycles=None)
+            return DynamicMetrics(stack_usage_bytes=None, heap_usage_bytes=None, cpu_cycles=None)
 
         print(f"Found symbols: g_stack_usage at 0x{g_stack_usage_addr:08X}, "
               f"g_cpu_cycles_used at 0x{g_cpu_cycles_used_addr:08X}")
+        if g_heap_usage_addr is not None:
+            print(f"  g_heap_usage at 0x{g_heap_usage_addr:08X}")
+        else:
+            print("  g_heap_usage not found (heap measurement not available)")
 
         # Wait for scenario to complete
         print(f"Waiting {delay_seconds} seconds for scenario to complete...")
@@ -712,20 +723,33 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
         addr1_hex = f"0x{g_stack_usage_addr:08x}"
         addr2_hex = f"0x{g_cpu_cycles_used_addr:08x}"
 
+        # Build OpenOCD command list
+        openocd_cmd = [
+            'openocd',
+            '-f', 'interface/stlink.cfg',
+            '-f', 'target/stm32f4x.cfg',
+            '-c', 'init',
+            '-c', 'halt',
+            '-c', f'mdw {addr1_hex}',
+            '-c', f'mdw {addr2_hex}',
+        ]
+
+        # Add heap usage reading if available
+        if g_heap_usage_addr is not None:
+            addr3_hex = f"0x{g_heap_usage_addr:08x}"
+            openocd_cmd.extend([
+                '-c', f'mdw {addr3_hex}',
+            ])
+
+        openocd_cmd.extend([
+            '-c', 'resume',
+            '-c', 'exit'
+        ])
+
         try:
             # Run OpenOCD with commands passed via -c options
             result = subprocess.run(
-                [
-                    'openocd',
-                    '-f', 'interface/stlink.cfg',
-                    '-f', 'target/stm32f4x.cfg',
-                    '-c', 'init',
-                    '-c', 'halt',
-                    '-c', f'mdw {addr1_hex}',
-                    '-c', f'mdw {addr2_hex}',
-                    '-c', 'resume',
-                    '-c', 'exit'
-                ],
+                openocd_cmd,
                 capture_output=True,
                 text=True,
                 check=True
@@ -735,17 +759,19 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
             # OpenOCD outputs to stderr, so check both stdout and stderr
             all_output = result.stdout + "\n" + result.stderr
             stack_usage_bytes = None
+            heap_usage_bytes = None
             cpu_cycles = None
 
             # OpenOCD mdw output format: "0x20000028: 12345678"
             addr1_lower = f"0x{g_stack_usage_addr:08x}"
             addr2_lower = f"0x{g_cpu_cycles_used_addr:08x}"
+            addr3_lower = f"0x{g_heap_usage_addr:08x}" if g_heap_usage_addr is not None else None
 
             for line in all_output.split('\n'):
                 line = line.strip().lower()
                 if not line:
                     continue
-                
+
                 # Check if line contains the address
                 if addr1_lower in line:
                     # Parse memory value: "0xaddress: value"
@@ -767,13 +793,25 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
                             cpu_cycles = int(value_str, 16)
                         except (ValueError, IndexError):
                             pass
+                elif addr3_lower is not None and addr3_lower in line:
+                    # Parse memory value: "0xaddress: value"
+                    parts = line.split(':')
+                    if len(parts) >= 2:
+                        try:
+                            # Value might be space-separated after colon
+                            value_str = parts[1].strip().split()[0]
+                            heap_usage_bytes = int(value_str, 16)
+                        except (ValueError, IndexError):
+                            pass
 
             print(f"Dynamic metrics read successfully:")
             print(f"  Stack usage: {stack_usage_bytes} bytes" if stack_usage_bytes is not None else "  Stack usage: N/A")
+            print(f"  Heap usage: {heap_usage_bytes} bytes" if heap_usage_bytes is not None else "  Heap usage: N/A")
             print(f"  CPU cycles: {cpu_cycles}" if cpu_cycles is not None else "  CPU cycles: N/A")
 
             return DynamicMetrics(
                 stack_usage_bytes=stack_usage_bytes,
+                heap_usage_bytes=heap_usage_bytes,
                 cpu_cycles=cpu_cycles
             )
 
@@ -811,6 +849,7 @@ def init_database() -> None:
                     flash_usage_bytes INTEGER NOT NULL,
                     static_ram_usage_bytes INTEGER NOT NULL,
                     stack_usage_bytes INTEGER,
+                    heap_usage_bytes INTEGER,
                     cpu_cycles INTEGER,
                     library_commit_hash TEXT NOT NULL,
                     library_branch TEXT,
@@ -851,9 +890,9 @@ def store_result(result: BenchmarkResult) -> None:
             cursor.execute('''
                 INSERT INTO benchmark_results (
                     timestamp, library, scenario, flash_usage_bytes, static_ram_usage_bytes,
-                    stack_usage_bytes, cpu_cycles, library_commit_hash,
+                    stack_usage_bytes, heap_usage_bytes, cpu_cycles, library_commit_hash,
                     library_branch, library_tag, library_modified
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 result.timestamp,
                 result.library,
@@ -861,6 +900,7 @@ def store_result(result: BenchmarkResult) -> None:
                 result.flash_usage_bytes,
                 result.static_ram_usage_bytes,
                 result.stack_usage_bytes,
+                result.heap_usage_bytes,
                 result.cpu_cycles,
                 result.library_commit_hash,
                 result.library_branch,
@@ -923,11 +963,12 @@ def get_latest_results(library: Optional[str] = None, scenario: Optional[str] = 
                     flash_usage_bytes=row[4],
                     static_ram_usage_bytes=row[5],
                     stack_usage_bytes=row[6],
-                    cpu_cycles=row[7],
-                    library_commit_hash=row[8],
-                    library_branch=row[9],
-                    library_tag=row[10],
-                    library_modified=bool(row[11]),
+                    heap_usage_bytes=row[7],
+                    cpu_cycles=row[8],
+                    library_commit_hash=row[9],
+                    library_branch=row[10],
+                    library_tag=row[11],
+                    library_modified=bool(row[12]),
                     timestamp=row[1]
                 )
                 results.append(result)
@@ -975,6 +1016,7 @@ def create_benchmark_result(
         flash_usage_bytes=static_sizes.flash_usage_bytes,
         static_ram_usage_bytes=static_sizes.static_ram_usage_bytes,
         stack_usage_bytes=dynamic_metrics.stack_usage_bytes,
+        heap_usage_bytes=dynamic_metrics.heap_usage_bytes,
         cpu_cycles=dynamic_metrics.cpu_cycles,
         library_commit_hash=git_info.commit_hash,
         library_branch=git_info.branch,
@@ -992,8 +1034,8 @@ def display_results(results: List[BenchmarkResult]) -> None:
 
     Acceptance Criteria:
     - Table columns: Library, Scenario, Flash (bytes), Static RAM (bytes),
-    - Stack RAM (bytes), CPU Cycles, Commit
-    - Stack RAM and CPU Cycles show 'N/A' if not measured (--flash not used)
+    - Stack Usage (bytes), Heap Usage (bytes), CPU Cycles, Commit
+    - Stack Usage, Heap Usage, and CPU Cycles show 'N/A' if not measured (--flash not used)
     - Commit hash is truncated to first 8 characters
     - Table header is clearly separated from data rows
     - Summary row shows totals or averages if multiple results
@@ -1008,8 +1050,10 @@ def display_results(results: List[BenchmarkResult]) -> None:
     total_flash = 0
     total_static_ram = 0
     total_stack_usage = 0
+    total_heap_usage = 0
     total_cpu_cycles = 0
     stack_count = 0
+    heap_count = 0
 
     for result in results:
         # Format each row
@@ -1019,6 +1063,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
             f"{result.flash_usage_bytes:,}",
             f"{result.static_ram_usage_bytes:,}",
             f"{result.stack_usage_bytes:,}" if result.stack_usage_bytes is not None else "N/A",
+            f"{result.heap_usage_bytes:,}" if result.heap_usage_bytes is not None else "N/A",
             f"{result.cpu_cycles:,}" if result.cpu_cycles is not None else "N/A",
             result.library_commit_hash[:8] if result.library_commit_hash else "N/A"
         ]
@@ -1030,6 +1075,9 @@ def display_results(results: List[BenchmarkResult]) -> None:
         if result.stack_usage_bytes is not None:
             total_stack_usage += result.stack_usage_bytes
             stack_count += 1
+        if result.heap_usage_bytes is not None:
+            total_heap_usage += result.heap_usage_bytes
+            heap_count += 1
         if result.cpu_cycles is not None:
             total_cpu_cycles += result.cpu_cycles
 
@@ -1040,6 +1088,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
         "Flash (bytes)",
         "Static RAM (bytes)",
         "Stack Usage (bytes)",
+        "Heap Usage (bytes)",
         "CPU Cycles",
         "Commit"
     ]
@@ -1055,12 +1104,20 @@ def display_results(results: List[BenchmarkResult]) -> None:
                 ["TOTAL/AVG", "", f"{total_flash:,}", f"{total_static_ram:,}"]
             ]
             if stack_count > 0:
-                summary_data[0].extend([
-                    f"{total_stack_usage:,}",
-                    f"{total_cpu_cycles:,}"
-                ])
+                summary_data[0].append(f"{total_stack_usage:,}")
             else:
-                summary_data[0].extend(["N/A", "N/A"])
+                summary_data[0].append("N/A")
+
+            if heap_count > 0:
+                summary_data[0].append(f"{total_heap_usage:,}")
+            else:
+                summary_data[0].append("N/A")
+
+            if stack_count > 0:  # CPU cycles are available if stack usage is available
+                summary_data[0].append(f"{total_cpu_cycles:,}")
+            else:
+                summary_data[0].append("N/A")
+
             summary_data[0].append("")
 
             print("\nSummary:")
@@ -1093,9 +1150,19 @@ def display_results(results: List[BenchmarkResult]) -> None:
             summary_row.extend([f"{total_flash:,}", f"{total_static_ram:,}"])
 
             if stack_count > 0:
-                summary_row.extend([f"{total_stack_usage:,}", f"{total_cpu_cycles:,}"])
+                summary_row.append(f"{total_stack_usage:,}")
             else:
-                summary_row.extend(["N/A", "N/A"])
+                summary_row.append("N/A")
+
+            if heap_count > 0:
+                summary_row.append(f"{total_heap_usage:,}")
+            else:
+                summary_row.append("N/A")
+
+            if stack_count > 0:  # CPU cycles are available if stack usage is available
+                summary_row.append(f"{total_cpu_cycles:,}")
+            else:
+                summary_row.append("N/A")
 
             summary_row.append("")
 

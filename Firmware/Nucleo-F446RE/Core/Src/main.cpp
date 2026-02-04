@@ -50,10 +50,15 @@ extern "C" {
     extern uint32_t _estack[];       // Top of stack (end of RAM)
     extern uint32_t _watermark_start[]; // Start of watermark section
     extern uint32_t _watermark_end[];   // End of watermark section
+    extern uint32_t _heap_watermark_start[]; // Start of heap watermark section
+    extern uint32_t _heap_watermark_end[];   // End of heap watermark section
 }
 
 // Global variable to store stack usage result (accessible via SWD)
 volatile uint32_t g_stack_usage = 0;
+
+// Global variable to store heap usage result (accessible via SWD)
+volatile uint32_t g_heap_usage = 0;
 
 // Global variable to store CPU cycle count for run_scenario() (accessible via SWD)
 volatile uint32_t g_cpu_cycles_used = 0;
@@ -65,8 +70,8 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
 // Function prototypes for memory measurement
-void initialize_memory_watermark();
 uint32_t measure_memory_usage();
+uint32_t measure_heap_usage();
 
 // Function prototype for DWT cycle counter
 void enable_dwt_cycle_counter();
@@ -113,8 +118,7 @@ int main(void)
   // Enable DWT cycle counter for CPU usage measurement
   enable_dwt_cycle_counter();
 
-  // Initialize scenario system
-  initialize_memory_watermark();
+  // Memory watermark is initialized in startup code (startup_stm32f446retx.s)
 
 /* USER CODE END 2 */
 
@@ -137,6 +141,9 @@ int main(void)
 
     // Measure stack usage after scenario and store result
     g_stack_usage = measure_memory_usage();
+
+    // Measure heap usage after scenario and store result
+    g_heap_usage = measure_heap_usage();
 
     // Infinite loop
     while(true)
@@ -269,6 +276,34 @@ uint32_t measure_memory_usage()
 
     // No overwritten memory found - stack usage is minimal
     return (uint32_t)_estack - (uint32_t)start;
+}
+
+/**
+  * @brief Measure heap usage by scanning heap watermark section
+  *        Scans from start of heap watermark section upward to find first overwritten location
+  * @retval uint32_t: Total peak heap usage from heap start
+  */
+uint32_t measure_heap_usage()
+{
+    // Get heap watermark boundaries from linker symbols
+    uint32_t* start = _heap_watermark_start;
+    uint32_t* end = _heap_watermark_end;
+
+    // Heap watermark pattern is 0x5A5A5A5A (different from stack to avoid confusion)
+    const uint32_t HEAP_WATERMARK_PATTERN = 0x5A5A5A5A;
+
+    // Scan from start of heap watermark region upward to find first overwritten location
+    for(uint32_t* ptr = start; ptr < end; ptr++)
+    {
+        if(*ptr != HEAP_WATERMARK_PATTERN)
+        {
+            // Found overwritten memory, calculate total heap usage from start of heap
+            return (uint32_t)ptr - (uint32_t)start;
+        }
+    }
+
+    // No overwritten memory found - heap usage is minimal
+    return 0;
 }
 
 /**

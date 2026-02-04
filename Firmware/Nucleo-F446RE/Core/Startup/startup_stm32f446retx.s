@@ -107,6 +107,20 @@ FillWatermark:
 LoopFillWatermark:
   cmp r0, r1
   bcc FillWatermark
+
+/* Initialize heap watermark section with distinctive pattern */
+  ldr r0, =_heap_watermark_start
+  ldr r1, =_heap_watermark_end
+  ldr r2, =0x5A5A5A5A
+  b LoopFillHeapWatermark
+
+FillHeapWatermark:
+  str r2, [r0]
+  adds r0, r0, #4
+
+LoopFillHeapWatermark:
+  cmp r0, r1
+  bcc FillHeapWatermark
   
 /* Call static constructors */
     bl __libc_init_array
