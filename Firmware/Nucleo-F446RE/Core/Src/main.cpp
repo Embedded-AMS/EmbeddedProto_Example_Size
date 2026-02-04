@@ -58,6 +58,9 @@ extern "C" {
 // Global variable to store dynamic memory usage result (accessible via SWD)
 volatile uint32_t g_dynamic_memory_used = 0;
 
+// Global variable to store CPU cycle count for run_scenario() (accessible via SWD)
+volatile uint32_t g_cpu_cycles_used = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -67,6 +70,9 @@ static void MX_GPIO_Init(void);
 // Function prototypes for memory measurement
 void initialize_memory_watermark();
 uint32_t measure_memory_usage();
+
+// Function prototype for DWT cycle counter
+void enable_dwt_cycle_counter();
 
 /* USER CODE END PFP */
 
@@ -107,6 +113,9 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
 /* USER CODE BEGIN 2 */
+  // Enable DWT cycle counter for CPU usage measurement
+  enable_dwt_cycle_counter();
+
   // Initialize scenario system
   initialize_memory_watermark();
 
@@ -122,8 +131,14 @@ int main(void)
     // Initialize memory watermark before scenario
     initialize_memory_watermark();
 
+    // Reset cycle counter and capture start value
+    DWT->CYCCNT = 0;
+
     // Run the selected scenario
     run_scenario();
+
+    // Capture cycle count after scenario execution
+    g_cpu_cycles_used = DWT->CYCCNT;
 
     // Measure memory usage after scenario and store result
     g_dynamic_memory_used = measure_memory_usage();
@@ -271,6 +286,21 @@ uint32_t measure_memory_usage()
     
     // No overwritten memory found
     return 0;
+}
+
+/**
+  * @brief Enable DWT cycle counter for CPU cycle measurement
+  *        Must be called once during initialization
+  * @retval None
+  */
+void enable_dwt_cycle_counter()
+{
+    // Enable trace and debug block (required for DWT)
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    // Reset the cycle counter
+    DWT->CYCCNT = 0;
+    // Enable the cycle counter
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
 }
 
 /* USER CODE END 4 */
