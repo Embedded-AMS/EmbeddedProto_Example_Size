@@ -129,6 +129,14 @@ elseif(LIBRARY STREQUAL "NanoPB")
         add_library(generated_code STATIC ${GENERATED_SOURCES})
         target_include_directories(generated_code PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
         target_include_directories(generated_code PUBLIC ${NANOPB_DIR})
+
+        # Add NanoPB runtime source files
+        set(NANOPB_RUNTIME_SOURCES
+            "${NANOPB_DIR}/pb_common.c"
+            "${NANOPB_DIR}/pb_encode.c"
+            "${NANOPB_DIR}/pb_decode.c"
+        )
+        target_sources(generated_code PRIVATE ${NANOPB_RUNTIME_SOURCES})
     endif()
     
 else()
