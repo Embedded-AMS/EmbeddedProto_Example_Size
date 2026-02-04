@@ -56,6 +56,8 @@ target_sources(nucleo_f446re_app PRIVATE
     Core/Src/system_stm32f4xx.c
     Core/Src/stm32f4xx_hal_msp.c
     Core/Src/stm32f4xx_it.c
+    Core/Src/syscalls.c
+    Core/Src/sysmem.c
 )
 
 # Link with scenario library (defined in Scenarios/CMakeLists.txt)
