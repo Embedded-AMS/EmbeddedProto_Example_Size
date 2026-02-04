@@ -1,6 +1,6 @@
 
 #include <simple_types.h>
-#include <helper_simple_types.h>
+#include <EmbeddedProto/helper_simple_types.h>
 
 void run_scenario()
 {
