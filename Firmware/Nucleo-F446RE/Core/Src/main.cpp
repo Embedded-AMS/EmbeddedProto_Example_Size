@@ -43,6 +43,20 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+// Linker symbols for memory boundaries (declared as arrays to avoid size warnings)
+extern "C" {
+    extern uint32_t _end[];      // End of BSS section, start of free memory
+    extern uint32_t _estack[];   // Top of stack (end of RAM)
+}
+
+// Watermark pattern for memory tracking
+#define MEMORY_WATERMARK_PATTERN 0xA5A5A5A5
+
+// Stack margin to avoid overwriting current stack frame
+#define STACK_MARGIN 512
+
+// Global variable to store dynamic memory usage result (accessible via SWD)
+volatile uint32_t g_dynamic_memory_used = 0;
 
 /* USER CODE END PV */
 
@@ -50,6 +64,9 @@
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
+// Function prototypes for memory measurement
+void initialize_memory_watermark();
+uint32_t measure_memory_usage();
 
 /* USER CODE END PFP */
 
@@ -90,7 +107,8 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
 /* USER CODE BEGIN 2 */
-// Initialize scenario system
+  // Initialize scenario system
+  initialize_memory_watermark();
 
 /* USER CODE END 2 */
 
@@ -101,8 +119,14 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    // Initialize memory watermark before scenario
+    initialize_memory_watermark();
+
     // Run the selected scenario
     run_scenario();
+
+    // Measure memory usage after scenario and store result
+    g_dynamic_memory_used = measure_memory_usage();
 
     // Small delay to prevent tight looping
     HAL_Delay(100);
@@ -205,6 +229,49 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+/**
+  * @brief Initialize free memory region with distinctive watermark pattern
+  *        Fills memory from end of BSS to current stack pointer minus margin
+  * @retval None
+  */
+void initialize_memory_watermark()
+{
+    // Get memory boundaries from linker symbols
+    uint32_t* start = _end;
+    // Leave margin below current stack pointer to avoid corrupting current stack frame
+    uint32_t* end = (uint32_t*)(((uint32_t)_estack) - STACK_MARGIN);
+    
+    // Fill free memory region with watermark pattern
+    for(uint32_t* ptr = start; ptr < end; ptr++)
+    {
+        *ptr = MEMORY_WATERMARK_PATTERN;
+    }
+}
+
+/**
+  * @brief Measure how much of the free memory was used (stack high water mark)
+  *        Scans from top of memory downward to find first overwritten location
+  * @retval uint32_t: Number of bytes used from stack (peak stack usage)
+  */
+uint32_t measure_memory_usage()
+{
+    // Get memory boundaries from linker symbols
+    uint32_t* start = _end;
+    uint32_t* end = (uint32_t*)_estack;
+    
+    // Scan from top of memory (stack) downward to find first overwritten location
+    for(uint32_t* ptr = end - 1; ptr >= start; ptr--)
+    {
+        if(*ptr != MEMORY_WATERMARK_PATTERN)
+        {
+            // Found overwritten memory, calculate peak stack usage
+            return (uint32_t)_estack - (uint32_t)ptr;
+        }
+    }
+    
+    // No overwritten memory found
+    return 0;
+}
 
 /* USER CODE END 4 */
 
