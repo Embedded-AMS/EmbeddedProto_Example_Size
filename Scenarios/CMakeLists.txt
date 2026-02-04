@@ -53,6 +53,9 @@ target_include_directories(scenario_lib PUBLIC
 # For EmbeddedProto scenarios, add the EmbeddedProto source directory
 if(LIBRARY STREQUAL "EmbeddedProto")
     target_include_directories(scenario_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../External/EmbeddedProto/src)
+elseif(LIBRARY STREQUAL "ArduinoJson")
+    # For ArduinoJson scenarios, add the ArduinoJson include directory
+    target_include_directories(scenario_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../External/ArduinoJson/src)
 endif()
 
 # Set ARM-specific compiler flags for scenario code
