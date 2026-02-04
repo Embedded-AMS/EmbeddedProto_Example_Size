@@ -55,8 +55,8 @@ extern "C" {
 // Stack margin to avoid overwriting current stack frame
 #define STACK_MARGIN 512
 
-// Global variable to store dynamic memory usage result (accessible via SWD)
-volatile uint32_t g_dynamic_memory_used = 0;
+// Global variable to store stack usage result (accessible via SWD)
+volatile uint32_t g_stack_usage = 0;
 
 // Global variable to store CPU cycle count for run_scenario() (accessible via SWD)
 volatile uint32_t g_cpu_cycles_used = 0;
@@ -140,8 +140,8 @@ int main(void)
     // Capture cycle count after scenario execution
     g_cpu_cycles_used = DWT->CYCCNT;
 
-    // Measure memory usage after scenario and store result
-    g_dynamic_memory_used = measure_memory_usage();
+    // Measure stack usage after scenario and store result
+    g_stack_usage = measure_memory_usage();
 
     // Infinite loop
     while(true)

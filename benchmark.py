@@ -49,7 +49,7 @@ class StaticSizes:
 @dataclass
 class DynamicMetrics:
     """Data class to hold dynamic metrics from device."""
-    dynamic_ram_bytes: Optional[int]
+    stack_usage_bytes: Optional[int]
     cpu_cycles: Optional[int]
 
 @dataclass
@@ -67,7 +67,7 @@ class BenchmarkResult:
     scenario: str
     flash_usage_bytes: int
     static_ram_usage_bytes: int
-    dynamic_ram_bytes: Optional[int]
+    stack_usage_bytes: Optional[int]
     cpu_cycles: Optional[int]
     library_commit_hash: str
     library_branch: Optional[str]
@@ -619,14 +619,14 @@ def flash_device(elf_path: str) -> bool:
 
 def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetrics:
     """
-    Read dynamic metrics (RAM usage and CPU cycles) from the running device via OpenOCD/SWD.
+    Read dynamic metrics (stack usage and CPU cycles) from the running device via OpenOCD/SWD.
 
     Args:
         elf_path: Path to the ELF file
         delay_seconds: Time to wait for scenario to complete (default: 0.5 seconds)
 
     Returns:
-        DynamicMetrics dataclass with dynamic_ram_bytes and cpu_cycles
+        DynamicMetrics dataclass with stack_usage_bytes and cpu_cycles
         Returns None values if device is not flashed or metrics cannot be read
 
     Raises:
@@ -650,7 +650,7 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
     elf_file = Path(elf_path)
     if not elf_file.exists():
         print("Warning: ELF file not found for dynamic metrics reading")
-        return DynamicMetrics(dynamic_ram_bytes=None, cpu_cycles=None)
+        return DynamicMetrics(stack_usage_bytes=None, cpu_cycles=None)
 
     print(f"Reading dynamic metrics from device...")
 
@@ -664,7 +664,7 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
         )
 
         # Parse symbol addresses
-        g_dynamic_memory_used_addr = None
+        g_stack_usage_addr = None
         g_cpu_cycles_used_addr = None
 
         for line in nm_result.stdout.split('\n'):
@@ -680,8 +680,8 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
                     symbol_name = parts[0].strip()
                     try:
                         address = int(parts[1].strip())
-                        if symbol_name == 'g_dynamic_memory_used':
-                            g_dynamic_memory_used_addr = address
+                        if symbol_name == 'g_stack_usage':
+                            g_stack_usage_addr = address
                         elif symbol_name == 'g_cpu_cycles_used':
                             g_cpu_cycles_used_addr = address
                     except ValueError:
@@ -691,16 +691,16 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
                 parts = line.split()
                 if len(parts) >= 4:
                     symbol_name = parts[-1]
-                    if symbol_name == 'g_dynamic_memory_used':
-                        g_dynamic_memory_used_addr = int(parts[0])
+                    if symbol_name == 'g_stack_usage':
+                        g_stack_usage_addr = int(parts[0])
                     elif symbol_name == 'g_cpu_cycles_used':
                         g_cpu_cycles_used_addr = int(parts[0])
 
-        if g_dynamic_memory_used_addr is None or g_cpu_cycles_used_addr is None:
+        if g_stack_usage_addr is None or g_cpu_cycles_used_addr is None:
             print("Warning: Could not find required symbols in ELF file")
-            return DynamicMetrics(dynamic_ram_bytes=None, cpu_cycles=None)
+            return DynamicMetrics(stack_usage_bytes=None, cpu_cycles=None)
 
-        print(f"Found symbols: g_dynamic_memory_used at 0x{g_dynamic_memory_used_addr:08X}, "
+        print(f"Found symbols: g_stack_usage at 0x{g_stack_usage_addr:08X}, "
               f"g_cpu_cycles_used at 0x{g_cpu_cycles_used_addr:08X}")
 
         # Wait for scenario to complete
@@ -709,7 +709,7 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
 
         # Read memory using OpenOCD via command-line arguments
         # Convert addresses to hex format for OpenOCD mdw command
-        addr1_hex = f"0x{g_dynamic_memory_used_addr:08x}"
+        addr1_hex = f"0x{g_stack_usage_addr:08x}"
         addr2_hex = f"0x{g_cpu_cycles_used_addr:08x}"
 
         try:
@@ -734,11 +734,11 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
             # Parse OpenOCD output to extract memory values
             # OpenOCD outputs to stderr, so check both stdout and stderr
             all_output = result.stdout + "\n" + result.stderr
-            dynamic_ram_bytes = None
+            stack_usage_bytes = None
             cpu_cycles = None
 
             # OpenOCD mdw output format: "0x20000028: 12345678"
-            addr1_lower = f"0x{g_dynamic_memory_used_addr:08x}"
+            addr1_lower = f"0x{g_stack_usage_addr:08x}"
             addr2_lower = f"0x{g_cpu_cycles_used_addr:08x}"
 
             for line in all_output.split('\n'):
@@ -754,7 +754,7 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
                         try:
                             # Value might be space-separated after colon
                             value_str = parts[1].strip().split()[0]
-                            dynamic_ram_bytes = int(value_str, 16)
+                            stack_usage_bytes = int(value_str, 16)
                         except (ValueError, IndexError):
                             pass
                 elif addr2_lower in line:
@@ -769,25 +769,25 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
                             pass
 
             print(f"Dynamic metrics read successfully:")
-            print(f"  Dynamic RAM usage: {dynamic_ram_bytes} bytes" if dynamic_ram_bytes is not None else "  Dynamic RAM usage: N/A")
+            print(f"  Stack usage: {stack_usage_bytes} bytes" if stack_usage_bytes is not None else "  Stack usage: N/A")
             print(f"  CPU cycles: {cpu_cycles}" if cpu_cycles is not None else "  CPU cycles: N/A")
 
             return DynamicMetrics(
-                dynamic_ram_bytes=dynamic_ram_bytes,
+                stack_usage_bytes=stack_usage_bytes,
                 cpu_cycles=cpu_cycles
             )
 
         except subprocess.CalledProcessError as e:
             error_output = e.stderr or e.stdout or "Unknown OpenOCD error"
             print(f"Warning: Could not read dynamic metrics: {error_output.strip()}")
-            return DynamicMetrics(dynamic_ram_bytes=None, cpu_cycles=None)
+            return DynamicMetrics(stack_usage_bytes=None, cpu_cycles=None)
 
     except subprocess.CalledProcessError as e:
         print(f"Warning: Could not extract symbol information: {str(e)}")
-        return DynamicMetrics(dynamic_ram_bytes=None, cpu_cycles=None)
+        return DynamicMetrics(stack_usage_bytes=None, cpu_cycles=None)
     except Exception as e:
         print(f"Warning: Unexpected error reading dynamic metrics: {str(e)}")
-        return DynamicMetrics(dynamic_ram_bytes=None, cpu_cycles=None)
+        return DynamicMetrics(stack_usage_bytes=None, cpu_cycles=None)
 
 def init_database() -> None:
     """
@@ -810,7 +810,7 @@ def init_database() -> None:
                     scenario TEXT NOT NULL,
                     flash_usage_bytes INTEGER NOT NULL,
                     static_ram_usage_bytes INTEGER NOT NULL,
-                    dynamic_ram_usage_bytes INTEGER,
+                    stack_usage_bytes INTEGER,
                     cpu_cycles INTEGER,
                     library_commit_hash TEXT NOT NULL,
                     library_branch TEXT,
@@ -851,7 +851,7 @@ def store_result(result: BenchmarkResult) -> None:
             cursor.execute('''
                 INSERT INTO benchmark_results (
                     timestamp, library, scenario, flash_usage_bytes, static_ram_usage_bytes,
-                    dynamic_ram_usage_bytes, cpu_cycles, library_commit_hash,
+                    stack_usage_bytes, cpu_cycles, library_commit_hash,
                     library_branch, library_tag, library_modified
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
@@ -860,7 +860,7 @@ def store_result(result: BenchmarkResult) -> None:
                 result.scenario,
                 result.flash_usage_bytes,
                 result.static_ram_usage_bytes,
-                result.dynamic_ram_bytes,
+                result.stack_usage_bytes,
                 result.cpu_cycles,
                 result.library_commit_hash,
                 result.library_branch,
@@ -922,7 +922,7 @@ def get_latest_results(library: Optional[str] = None, scenario: Optional[str] = 
                     scenario=row[3],
                     flash_usage_bytes=row[4],
                     static_ram_usage_bytes=row[5],
-                    dynamic_ram_bytes=row[6],
+                    stack_usage_bytes=row[6],
                     cpu_cycles=row[7],
                     library_commit_hash=row[8],
                     library_branch=row[9],
@@ -974,7 +974,7 @@ def create_benchmark_result(
         scenario=scenario,
         flash_usage_bytes=static_sizes.flash_usage_bytes,
         static_ram_usage_bytes=static_sizes.static_ram_usage_bytes,
-        dynamic_ram_bytes=dynamic_metrics.dynamic_ram_bytes,
+        stack_usage_bytes=dynamic_metrics.stack_usage_bytes,
         cpu_cycles=dynamic_metrics.cpu_cycles,
         library_commit_hash=git_info.commit_hash,
         library_branch=git_info.branch,
@@ -992,8 +992,8 @@ def display_results(results: List[BenchmarkResult]) -> None:
 
     Acceptance Criteria:
     - Table columns: Library, Scenario, Flash (bytes), Static RAM (bytes),
-      Dynamic RAM (bytes), CPU Cycles, Commit
-    - Dynamic RAM and CPU Cycles show 'N/A' if not measured (--flash not used)
+    - Stack RAM (bytes), CPU Cycles, Commit
+    - Stack RAM and CPU Cycles show 'N/A' if not measured (--flash not used)
     - Commit hash is truncated to first 8 characters
     - Table header is clearly separated from data rows
     - Summary row shows totals or averages if multiple results
@@ -1007,9 +1007,9 @@ def display_results(results: List[BenchmarkResult]) -> None:
     table_data = []
     total_flash = 0
     total_static_ram = 0
-    total_dynamic_ram = 0
+    total_stack_usage = 0
     total_cpu_cycles = 0
-    dynamic_count = 0
+    stack_count = 0
 
     for result in results:
         # Format each row
@@ -1018,7 +1018,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
             result.scenario,
             f"{result.flash_usage_bytes:,}",
             f"{result.static_ram_usage_bytes:,}",
-            f"{result.dynamic_ram_bytes:,}" if result.dynamic_ram_bytes is not None else "N/A",
+            f"{result.stack_usage_bytes:,}" if result.stack_usage_bytes is not None else "N/A",
             f"{result.cpu_cycles:,}" if result.cpu_cycles is not None else "N/A",
             result.library_commit_hash[:8] if result.library_commit_hash else "N/A"
         ]
@@ -1027,9 +1027,9 @@ def display_results(results: List[BenchmarkResult]) -> None:
         # Accumulate totals for summary
         total_flash += result.flash_usage_bytes
         total_static_ram += result.static_ram_usage_bytes
-        if result.dynamic_ram_bytes is not None:
-            total_dynamic_ram += result.dynamic_ram_bytes
-            dynamic_count += 1
+        if result.stack_usage_bytes is not None:
+            total_stack_usage += result.stack_usage_bytes
+            stack_count += 1
         if result.cpu_cycles is not None:
             total_cpu_cycles += result.cpu_cycles
 
@@ -1039,7 +1039,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
         "Scenario",
         "Flash (bytes)",
         "Static RAM (bytes)",
-        "Dynamic RAM (bytes)",
+        "Stack Usage (bytes)",
         "CPU Cycles",
         "Commit"
     ]
@@ -1054,9 +1054,9 @@ def display_results(results: List[BenchmarkResult]) -> None:
             summary_data = [
                 ["TOTAL/AVG", "", f"{total_flash:,}", f"{total_static_ram:,}"]
             ]
-            if dynamic_count > 0:
+            if stack_count > 0:
                 summary_data[0].extend([
-                    f"{total_dynamic_ram:,}",
+                    f"{total_stack_usage:,}",
                     f"{total_cpu_cycles:,}"
                 ])
             else:
@@ -1092,8 +1092,8 @@ def display_results(results: List[BenchmarkResult]) -> None:
             summary_row = ["TOTAL/AVG", ""]
             summary_row.extend([f"{total_flash:,}", f"{total_static_ram:,}"])
 
-            if dynamic_count > 0:
-                summary_row.extend([f"{total_dynamic_ram:,}", f"{total_cpu_cycles:,}"])
+            if stack_count > 0:
+                summary_row.extend([f"{total_stack_usage:,}", f"{total_cpu_cycles:,}"])
             else:
                 summary_row.extend(["N/A", "N/A"])
 
@@ -1357,8 +1357,8 @@ def main() -> None:
                         # Read dynamic metrics after successful flashing
                         try:
                             dynamic_metrics = read_dynamic_metrics(elf_path)
-                            if dynamic_metrics.dynamic_ram_bytes is not None:
-                                print(f"Dynamic RAM usage: {dynamic_metrics.dynamic_ram_bytes} bytes")
+                            if dynamic_metrics.stack_usage_bytes is not None:
+                                print(f"Stack usage: {dynamic_metrics.stack_usage_bytes} bytes")
                             if dynamic_metrics.cpu_cycles is not None:
                                 print(f"CPU cycles: {dynamic_metrics.cpu_cycles}")
                         except FileNotFoundError as e:
@@ -1433,8 +1433,8 @@ def main() -> None:
                             # Read dynamic metrics after successful flashing
                             try:
                                 dynamic_metrics = read_dynamic_metrics(elf_path)
-                                if dynamic_metrics.dynamic_ram_bytes is not None:
-                                    print(f"Dynamic RAM usage: {dynamic_metrics.dynamic_ram_bytes} bytes")
+                                if dynamic_metrics.stack_usage_bytes is not None:
+                                    print(f"Stack usage: {dynamic_metrics.stack_usage_bytes} bytes")
                                 if dynamic_metrics.cpu_cycles is not None:
                                     print(f"CPU cycles: {dynamic_metrics.cpu_cycles}")
                             except FileNotFoundError as e:
@@ -1522,8 +1522,8 @@ def main() -> None:
                             # Read dynamic metrics after successful flashing
                             try:
                                 dynamic_metrics = read_dynamic_metrics(elf_path)
-                                if dynamic_metrics.dynamic_ram_bytes is not None:
-                                    print(f"Dynamic RAM usage: {dynamic_metrics.dynamic_ram_bytes} bytes")
+                                if dynamic_metrics.stack_usage_bytes is not None:
+                                    print(f"Stack usage: {dynamic_metrics.stack_usage_bytes} bytes")
                                 if dynamic_metrics.cpu_cycles is not None:
                                     print(f"CPU cycles: {dynamic_metrics.cpu_cycles}")
                             except FileNotFoundError as e:
@@ -1607,8 +1607,8 @@ def main() -> None:
                             # Read dynamic metrics after successful flashing
                             try:
                                 dynamic_metrics = read_dynamic_metrics(elf_path)
-                                if dynamic_metrics.dynamic_ram_bytes is not None:
-                                    print(f"Dynamic RAM usage: {dynamic_metrics.dynamic_ram_bytes} bytes")
+                                if dynamic_metrics.stack_usage_bytes is not None:
+                                    print(f"Stack usage: {dynamic_metrics.stack_usage_bytes} bytes")
                                 if dynamic_metrics.cpu_cycles is not None:
                                     print(f"CPU cycles: {dynamic_metrics.cpu_cycles}")
                             except FileNotFoundError as e:

@@ -16,5 +16,5 @@ Run the script ./flash.sh
 * The TARGET_LIBIRARY specifies for which test results are generated. This is done by using it to generate proto files and scenarios. You will see libraries have dedicated sub folders in the folders ./External and ./Scenarios. 
 * The TARGET_SCENARIO specifis which cpp file to build from ./Scenarios/TARTEG_LIBRARY/TARTEG_SCENARIO.cpp. 
 * Arm GNU Non EABI build tools are used to obtain the amount of flash and statically allocated RAM used by a library scenario combination. 
-* OpenOCD is used to flash the code onto a Nucleo-F466RE dev board. Using SWD features the dynamically used RAM, CPU cycles and buffer usage required to execute the comination are obtaind to the host pc.
+* OpenOCD is used to flash the code onto a Nucleo-F466RE dev board. Using SWD features the stack usage, CPU cycles and buffer usage required to execute the comination are obtained to the host pc.
 * All results are stored in a sqlite database.
