@@ -2,6 +2,11 @@
 #include <NanoPB/helper_simple_types.h>
 #include <pb_encode.h>
 
+// Volatile variable to prevent compiler from optimizing away serialization
+// The compiler must preserve the buffer write since this checksum depends on it
+extern "C" volatile uint8_t g_buffer_checksum;
+volatile uint8_t g_buffer_checksum = 0;
+
 uint32_t run_scenario()
 {
   Test_Simple_Types msg = Test_Simple_Types_init_default;
@@ -13,6 +18,14 @@ uint32_t run_scenario()
 
   // Serialize the message
   const bool result = pb_encode(&stream, Test_Simple_Types_fields, &msg);
+
+  // Calculate checksum to prevent dead code elimination
+  // The compiler cannot optimize away serialize() since buffer content is used
+  uint8_t checksum = 0;
+  for (uint32_t i = 0; i < stream.bytes_written; i++) {
+    checksum ^= buffer[i];
+  }
+  g_buffer_checksum = checksum;
 
   return stream.bytes_written;
 }
