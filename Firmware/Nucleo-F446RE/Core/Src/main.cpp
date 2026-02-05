@@ -138,7 +138,7 @@ int main(void)
     DWT->CYCCNT = 0;
 
     // Run the selected scenario
-    g_cpu_cycles_used = run_scenario();
+    g_n_bytes_in_buffer = run_scenario();
 
     // Capture cycle count after scenario execution
     g_cpu_cycles_used = DWT->CYCCNT;
