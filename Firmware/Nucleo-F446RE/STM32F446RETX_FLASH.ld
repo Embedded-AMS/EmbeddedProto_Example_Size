@@ -164,29 +164,32 @@ SECTIONS
     __bss_end__ = _ebss;
   } >RAM
 
-  /* User_heap_stack section, used to check that there is enough "RAM" Ram  type memory left */
+  /* User_heap_stack section - defines heap boundary only.
+   * The heap grows upward from _end, the stack grows downward from _estack.
+   * We use watermark patterns to measure actual usage of both.
+   * The heap watermark (0x5A5A5A5A) covers the reserved heap area.
+   * The stack watermark (0xA5A5A5A5) covers everything from heap end to _estack.
+   */
   ._user_heap_stack :
   {
     . = ALIGN(8);
     PROVIDE ( end = . );
     PROVIDE ( _end = . );
-    . = . + _Min_Heap_Size;
-    . = . + _Min_Stack_Size;
-    . = ALIGN(8);
-  } >RAM
-
-  /* Heap watermark section - placed right after heap for heap usage measurement */
-  .heap_watermark :
-  {
-    . = ALIGN(4);
+    /* Define heap watermark boundaries - heap starts at _end */
     PROVIDE ( _heap_watermark_start = . );
-    /* Allocate space for heap watermark (same size as heap) */
     . = . + _Min_Heap_Size;
     PROVIDE ( _heap_watermark_end = . );
     PROVIDE ( _heap_watermark_size = _heap_watermark_end - _heap_watermark_start );
-  } >RAM = 0x5A5A5A5A
+    /* Note: We no longer reserve _Min_Stack_Size here since the stack watermark
+     * section covers all remaining RAM up to _estack */
+    . = ALIGN(8);
+  } >RAM
 
-  /* Watermark section - fills unused RAM with distinctive pattern for stack usage measurement */
+  /* Watermark section - fills ALL remaining RAM with distinctive pattern for stack usage measurement 
+   * This section is filled with 0xA5A5A5A5 pattern at startup.
+   * Stack grows down from _estack into this area.
+   * Starts immediately after heap watermark - no gap!
+   */
   .watermark :
   {
     . = ALIGN(4);
