@@ -461,6 +461,9 @@ def extract_static_sizes(elf_path: str) -> StaticSizes:
             "On Ubuntu/Debian: sudo apt install binutils-arm-none-eabi"
         )
 
+    # Check if arm-none-eabi-nm is available for more accurate RAM calculation
+    nm_available = shutil.which('arm-none-eabi-nm') is not None
+
     try:
         # Run arm-none-eabi-size (default format gives text, data, bss summary)
         result = subprocess.run(
@@ -499,9 +502,16 @@ def extract_static_sizes(elf_path: str) -> StaticSizes:
         except (ValueError, IndexError) as e:
             raise ValueError(f"Could not parse size values from arm-none-eabi-size output: {result.stdout}") from e
 
-        # Calculate metrics
+        # Calculate flash usage (text + data)
         flash_usage = text_size + data_size
-        static_ram_usage = data_size + bss_size
+
+        # Calculate static RAM usage
+        if nm_available:
+            # Use more accurate method with arm-none-eabi-nm to exclude watermark sections
+            static_ram_usage = _calculate_static_ram_with_nm(elf_path, data_size)
+        else:
+            # Fallback to simple data + bss calculation
+            static_ram_usage = data_size + bss_size
 
         return StaticSizes(
             flash_usage_bytes=flash_usage,
@@ -515,6 +525,108 @@ def extract_static_sizes(elf_path: str) -> StaticSizes:
             e.cmd,
             output=f"arm-none-eabi-size failed: {error_output}"
         ) from e
+
+def _calculate_static_ram_with_nm(elf_path: str, data_size: int) -> int:
+    """
+    Calculate static RAM usage more accurately using arm-none-eabi-nm to exclude watermark sections.
+
+    Args:
+        elf_path: Path to the ELF file
+        data_size: Data size from arm-none-eabi-size (used as fallback)
+
+    Returns:
+        Static RAM usage in bytes, excluding watermark measurement sections
+
+    Raises:
+        subprocess.CalledProcessError: If arm-none-eabi-nm fails to run
+    """
+    try:
+        # Run arm-none-eabi-nm to get symbol addresses
+        result = subprocess.run(
+            ['arm-none-eabi-nm', '--defined-only', '--format=sysv', '--radix=d', elf_path],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        # Parse symbol addresses
+        ebss_addr = None
+        heap_watermark_start_addr = None
+
+        for line in result.stdout.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+
+            # Parse nm output - it can be either space-separated or pipe-separated
+            if '|' in line:
+                # Pipe-separated format: symbol|address|type|size|section
+                parts = line.split('|')
+                if len(parts) >= 2:
+                    symbol_name = parts[0].strip()
+                    try:
+                        address = int(parts[1].strip())
+                        if symbol_name == '_ebss':
+                            ebss_addr = address
+                        elif symbol_name == '_heap_watermark_start':
+                            heap_watermark_start_addr = address
+                    except ValueError:
+                        continue
+            else:
+                # Space-separated format: address type size section symbol
+                parts = line.split()
+                if len(parts) >= 4:
+                    symbol_name = parts[-1]
+                    if symbol_name == '_ebss':
+                        ebss_addr = int(parts[0])
+                    elif symbol_name == '_heap_watermark_start':
+                        heap_watermark_start_addr = int(parts[0])
+
+        # Calculate static RAM usage
+        if ebss_addr is not None and heap_watermark_start_addr is not None:
+            # Static RAM usage is from start of data (0x20000000) to end of BSS (_ebss)
+            # but we need to exclude the watermark sections
+            # The actual static usage is _ebss minus the start of data section
+            # However, we need to be more precise - let's use the difference between
+            # _ebss and _sdata to get the actual data+bss size
+
+            # Get _sdata address
+            sdata_addr = None
+            for line in result.stdout.split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+
+                if '|' in line:
+                    parts = line.split('|')
+                    if len(parts) >= 2:
+                        symbol_name = parts[0].strip()
+                        try:
+                            address = int(parts[1].strip())
+                            if symbol_name == '_sdata':
+                                sdata_addr = address
+                        except ValueError:
+                            continue
+                else:
+                    parts = line.split()
+                    if len(parts) >= 4:
+                        symbol_name = parts[-1]
+                        if symbol_name == '_sdata':
+                            sdata_addr = int(parts[0])
+
+            if sdata_addr is not None and ebss_addr > sdata_addr:
+                # Calculate actual data + bss size (excluding watermark sections)
+                return ebss_addr - sdata_addr
+            else:
+                # Fallback to data_size if we can't get proper symbols
+                return data_size
+        else:
+            # Fallback to data_size if watermark symbols are not found
+            return data_size
+
+    except subprocess.CalledProcessError as e:
+        # If nm fails, fallback to data_size
+        return data_size
 
     except subprocess.CalledProcessError as e:
         # Display build error information
