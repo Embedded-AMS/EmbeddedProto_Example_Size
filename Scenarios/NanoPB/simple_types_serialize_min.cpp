@@ -2,7 +2,7 @@
 #include <NanoPB/helper_simple_types.h>
 #include <pb_encode.h>
 
-void run_scenario()
+uint32_t run_scenario()
 {
   Test_Simple_Types msg = Test_Simple_Types_init_default;
   HelperSimpleTypesNanoPB::set_min(msg);
@@ -13,4 +13,6 @@ void run_scenario()
 
   // Serialize the message
   const bool result = pb_encode(&stream, Test_Simple_Types_fields, &msg);
+
+  return stream.bytes_written;
 }

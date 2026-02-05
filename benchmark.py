@@ -52,6 +52,7 @@ class DynamicMetrics:
     stack_usage_bytes: Optional[int]
     heap_usage_bytes: Optional[int]
     cpu_cycles: Optional[int]
+    n_bytes_in_buffer: Optional[int]
 
 @dataclass
 class GitInfo:
@@ -71,6 +72,7 @@ class BenchmarkResult:
     stack_usage_bytes: Optional[int]
     heap_usage_bytes: Optional[int]
     cpu_cycles: Optional[int]
+    n_bytes_in_buffer: Optional[int]
     library_commit_hash: str
     library_branch: Optional[str]
     library_tag: Optional[str]
@@ -652,7 +654,7 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
     elf_file = Path(elf_path)
     if not elf_file.exists():
         print("Warning: ELF file not found for dynamic metrics reading")
-        return DynamicMetrics(stack_usage_bytes=None, cpu_cycles=None)
+        return DynamicMetrics(stack_usage_bytes=None, heap_usage_bytes=None, cpu_cycles=None, n_bytes_in_buffer=None)
 
     print(f"Reading dynamic metrics from device...")
 
@@ -669,6 +671,7 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
         g_stack_usage_addr = None
         g_heap_usage_addr = None
         g_cpu_cycles_used_addr = None
+        g_n_bytes_in_buffer_addr = None
 
         for line in nm_result.stdout.split('\n'):
             line = line.strip()
@@ -689,6 +692,8 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
                             g_heap_usage_addr = address
                         elif symbol_name == 'g_cpu_cycles_used':
                             g_cpu_cycles_used_addr = address
+                        elif symbol_name == 'g_n_bytes_in_buffer':
+                            g_n_bytes_in_buffer_addr = address
                     except ValueError:
                         continue
             else:
@@ -702,10 +707,12 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
                         g_heap_usage_addr = int(parts[0])
                     elif symbol_name == 'g_cpu_cycles_used':
                         g_cpu_cycles_used_addr = int(parts[0])
+                    elif symbol_name == 'g_n_bytes_in_buffer':
+                        g_n_bytes_in_buffer_addr = int(parts[0])
 
         if g_stack_usage_addr is None or g_cpu_cycles_used_addr is None:
             print("Warning: Could not find required symbols in ELF file")
-            return DynamicMetrics(stack_usage_bytes=None, heap_usage_bytes=None, cpu_cycles=None)
+            return DynamicMetrics(stack_usage_bytes=None, heap_usage_bytes=None, cpu_cycles=None, n_bytes_in_buffer=None)
 
         print(f"Found symbols: g_stack_usage at 0x{g_stack_usage_addr:08X}, "
               f"g_cpu_cycles_used at 0x{g_cpu_cycles_used_addr:08X}")
@@ -713,6 +720,10 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
             print(f"  g_heap_usage at 0x{g_heap_usage_addr:08X}")
         else:
             print("  g_heap_usage not found (heap measurement not available)")
+        if g_n_bytes_in_buffer_addr is not None:
+            print(f"  g_n_bytes_in_buffer at 0x{g_n_bytes_in_buffer_addr:08X}")
+        else:
+            print("  g_n_bytes_in_buffer not found (buffer size measurement not available)")
 
         # Wait for scenario to complete
         print(f"Waiting {delay_seconds} seconds for scenario to complete...")
@@ -741,6 +752,13 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
                 '-c', f'mdw {addr3_hex}',
             ])
 
+        # Add n_bytes_in_buffer reading if available
+        if g_n_bytes_in_buffer_addr is not None:
+            addr4_hex = f"0x{g_n_bytes_in_buffer_addr:08x}"
+            openocd_cmd.extend([
+                '-c', f'mdw {addr4_hex}',
+            ])
+
         openocd_cmd.extend([
             '-c', 'resume',
             '-c', 'exit'
@@ -761,11 +779,13 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
             stack_usage_bytes = None
             heap_usage_bytes = None
             cpu_cycles = None
+            n_bytes_in_buffer = None
 
             # OpenOCD mdw output format: "0x20000028: 12345678"
             addr1_lower = f"0x{g_stack_usage_addr:08x}"
             addr2_lower = f"0x{g_cpu_cycles_used_addr:08x}"
             addr3_lower = f"0x{g_heap_usage_addr:08x}" if g_heap_usage_addr is not None else None
+            addr4_lower = f"0x{g_n_bytes_in_buffer_addr:08x}" if g_n_bytes_in_buffer_addr is not None else None
 
             for line in all_output.split('\n'):
                 line = line.strip().lower()
@@ -803,29 +823,41 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
                             heap_usage_bytes = int(value_str, 16)
                         except (ValueError, IndexError):
                             pass
+                elif addr4_lower is not None and addr4_lower in line:
+                    # Parse memory value: "0xaddress: value"
+                    parts = line.split(':')
+                    if len(parts) >= 2:
+                        try:
+                            # Value might be space-separated after colon
+                            value_str = parts[1].strip().split()[0]
+                            n_bytes_in_buffer = int(value_str, 16)
+                        except (ValueError, IndexError):
+                            pass
 
             print(f"Dynamic metrics read successfully:")
             print(f"  Stack usage: {stack_usage_bytes} bytes" if stack_usage_bytes is not None else "  Stack usage: N/A")
             print(f"  Heap usage: {heap_usage_bytes} bytes" if heap_usage_bytes is not None else "  Heap usage: N/A")
             print(f"  CPU cycles: {cpu_cycles}" if cpu_cycles is not None else "  CPU cycles: N/A")
+            print(f"  Buffer bytes: {n_bytes_in_buffer}" if n_bytes_in_buffer is not None else "  Buffer bytes: N/A")
 
             return DynamicMetrics(
                 stack_usage_bytes=stack_usage_bytes,
                 heap_usage_bytes=heap_usage_bytes,
-                cpu_cycles=cpu_cycles
+                cpu_cycles=cpu_cycles,
+                n_bytes_in_buffer=n_bytes_in_buffer
             )
 
         except subprocess.CalledProcessError as e:
             error_output = e.stderr or e.stdout or "Unknown OpenOCD error"
             print(f"Warning: Could not read dynamic metrics: {error_output.strip()}")
-            return DynamicMetrics(stack_usage_bytes=None, cpu_cycles=None)
+            return DynamicMetrics(stack_usage_bytes=None, heap_usage_bytes=None, cpu_cycles=None, n_bytes_in_buffer=None)
 
     except subprocess.CalledProcessError as e:
         print(f"Warning: Could not extract symbol information: {str(e)}")
-        return DynamicMetrics(stack_usage_bytes=None, cpu_cycles=None)
+        return DynamicMetrics(stack_usage_bytes=None, heap_usage_bytes=None, cpu_cycles=None, n_bytes_in_buffer=None)
     except Exception as e:
         print(f"Warning: Unexpected error reading dynamic metrics: {str(e)}")
-        return DynamicMetrics(stack_usage_bytes=None, cpu_cycles=None)
+        return DynamicMetrics(stack_usage_bytes=None, heap_usage_bytes=None, cpu_cycles=None, n_bytes_in_buffer=None)
 
 def init_database() -> None:
     """
@@ -851,12 +883,20 @@ def init_database() -> None:
                     stack_usage_bytes INTEGER,
                     heap_usage_bytes INTEGER,
                     cpu_cycles INTEGER,
+                    n_bytes_in_buffer INTEGER,
                     library_commit_hash TEXT NOT NULL,
                     library_branch TEXT,
                     library_tag TEXT,
                     library_modified BOOLEAN NOT NULL
                 )
             ''')
+
+            # Add n_bytes_in_buffer column if it doesn't exist (for existing databases)
+            try:
+                cursor.execute('ALTER TABLE benchmark_results ADD COLUMN n_bytes_in_buffer INTEGER')
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
 
             # Create index for faster queries on library and scenario
             cursor.execute('''
@@ -890,9 +930,9 @@ def store_result(result: BenchmarkResult) -> None:
             cursor.execute('''
                 INSERT INTO benchmark_results (
                     timestamp, library, scenario, flash_usage_bytes, static_ram_usage_bytes,
-                    stack_usage_bytes, heap_usage_bytes, cpu_cycles, library_commit_hash,
-                    library_branch, library_tag, library_modified
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    stack_usage_bytes, heap_usage_bytes, cpu_cycles, n_bytes_in_buffer,
+                    library_commit_hash, library_branch, library_tag, library_modified
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 result.timestamp,
                 result.library,
@@ -902,6 +942,7 @@ def store_result(result: BenchmarkResult) -> None:
                 result.stack_usage_bytes,
                 result.heap_usage_bytes,
                 result.cpu_cycles,
+                result.n_bytes_in_buffer,
                 result.library_commit_hash,
                 result.library_branch,
                 result.library_tag,
@@ -965,10 +1006,11 @@ def get_latest_results(library: Optional[str] = None, scenario: Optional[str] = 
                     stack_usage_bytes=row[6],
                     heap_usage_bytes=row[7],
                     cpu_cycles=row[8],
-                    library_commit_hash=row[9],
-                    library_branch=row[10],
-                    library_tag=row[11],
-                    library_modified=bool(row[12]),
+                    n_bytes_in_buffer=row[9],
+                    library_commit_hash=row[10],
+                    library_branch=row[11],
+                    library_tag=row[12],
+                    library_modified=bool(row[13]),
                     timestamp=row[1]
                 )
                 results.append(result)
@@ -1018,6 +1060,7 @@ def create_benchmark_result(
         stack_usage_bytes=dynamic_metrics.stack_usage_bytes,
         heap_usage_bytes=dynamic_metrics.heap_usage_bytes,
         cpu_cycles=dynamic_metrics.cpu_cycles,
+        n_bytes_in_buffer=dynamic_metrics.n_bytes_in_buffer,
         library_commit_hash=git_info.commit_hash,
         library_branch=git_info.branch,
         library_tag=git_info.tag,
@@ -1444,7 +1487,7 @@ def main() -> None:
                     library=args.library,
                     scenario=args.scenario,
                     static_sizes=static_sizes,
-                    dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
+                    dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None, None),
                     git_info=git_info
                 )
 
@@ -1523,7 +1566,7 @@ def main() -> None:
                         library=args.library,
                         scenario=scenario,
                         static_sizes=static_sizes,
-                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
+                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None, None),
                         git_info=git_info
                     )
 
@@ -1612,7 +1655,7 @@ def main() -> None:
                         library=lib,
                         scenario=args.scenario,
                         static_sizes=static_sizes,
-                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
+                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None, None),
                         git_info=git_info
                     )
 
@@ -1697,7 +1740,7 @@ def main() -> None:
                         library=lib,
                         scenario=scenario,
                         static_sizes=static_sizes,
-                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
+                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None, None),
                         git_info=git_info
                     )
 

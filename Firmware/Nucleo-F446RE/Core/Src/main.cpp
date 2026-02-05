@@ -63,6 +63,10 @@ volatile uint32_t g_heap_usage = 0;
 // Global variable to store CPU cycle count for run_scenario() (accessible via SWD)
 volatile uint32_t g_cpu_cycles_used = 0;
 
+// Global variable to store the number of bytes used in the serialization buffer. (accessible via SWD)
+volatile uint32_t g_n_bytes_in_buffer = 0;
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -81,7 +85,7 @@ void enable_dwt_cycle_counter();
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 // Forward declaration for scenario function
-void run_scenario();
+uint32_t run_scenario();
 
 /* USER CODE END 0 */
 
@@ -134,7 +138,7 @@ int main(void)
     DWT->CYCCNT = 0;
 
     // Run the selected scenario
-    run_scenario();
+    g_cpu_cycles_used = run_scenario();
 
     // Capture cycle count after scenario execution
     g_cpu_cycles_used = DWT->CYCCNT;

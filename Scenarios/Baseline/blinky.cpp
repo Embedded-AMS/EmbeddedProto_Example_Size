@@ -8,7 +8,7 @@
 
 #include "main.h"
 
-void run_scenario()
+uint32_t run_scenario()
 {
     HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
 }
