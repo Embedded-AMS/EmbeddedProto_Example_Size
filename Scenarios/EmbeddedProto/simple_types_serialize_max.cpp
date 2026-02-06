@@ -10,7 +10,7 @@ volatile uint8_t g_buffer_checksum = 0;
 
 uint32_t run_scenario()
 {
-  Test_Simple_Types msg;
+  Simple_Types msg;
   HelperSimpleTypes::set_max(msg);
 
   EmbeddedProto::WriteBufferFixedSize<100> buffer;

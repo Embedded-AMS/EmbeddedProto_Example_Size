@@ -20,7 +20,7 @@ bool almost_equal(T a, T b, T epsilon) {
     return std::abs(a - b) <= epsilon;
 }
 
-void set_min(Test_Simple_Types& msg)
+void set_min(Simple_Types& msg)
 {
   // Set all fields to their minimum values
   msg.set_a_int32(std::numeric_limits<int32_t>::min());
@@ -37,10 +37,10 @@ void set_min(Test_Simple_Types& msg)
   msg.set_a_fixed32(std::numeric_limits<uint32_t>::min());
   msg.set_a_sfixed32(std::numeric_limits<int32_t>::min());
   msg.set_a_float(std::numeric_limits<float>::lowest());
-  msg.set_a_nested_enum(Test_Simple_Types::Nested_Enum::NE_A);
+  msg.set_a_nested_enum(Simple_Types::Nested_Enum::NE_A);
 }
 
-void set_max(Test_Simple_Types& msg)
+void set_max(Simple_Types& msg)
 {
   // Set all fields to their maximum values
   msg.set_a_int32(std::numeric_limits<int32_t>::max());
@@ -57,10 +57,10 @@ void set_max(Test_Simple_Types& msg)
   msg.set_a_fixed32(std::numeric_limits<uint32_t>::max());
   msg.set_a_sfixed32(std::numeric_limits<int32_t>::max());
   msg.set_a_float(std::numeric_limits<float>::max());
-  msg.set_a_nested_enum(Test_Simple_Types::Nested_Enum::NE_C);
+  msg.set_a_nested_enum(Simple_Types::Nested_Enum::NE_C);
 }
 
-void set_average(Test_Simple_Types& msg)
+void set_average(Simple_Types& msg)
 {
   // Set all fields to average positive values
   msg.set_a_int32(std::numeric_limits<int32_t>::max() / 2);
@@ -77,10 +77,10 @@ void set_average(Test_Simple_Types& msg)
   msg.set_a_fixed32(std::numeric_limits<uint32_t>::max() / 2);
   msg.set_a_sfixed32(std::numeric_limits<int32_t>::max() / 2);
   msg.set_a_float(123.4567f);
-  msg.set_a_nested_enum(Test_Simple_Types::Nested_Enum::NE_B);
+  msg.set_a_nested_enum(Simple_Types::Nested_Enum::NE_B);
 }
 
-bool compare_min(const Test_Simple_Types& msg)
+bool compare_min(const Simple_Types& msg)
 {
   bool result = true;
   result &= msg.get_a_int32() == std::numeric_limits<int32_t>::min();
@@ -97,11 +97,11 @@ bool compare_min(const Test_Simple_Types& msg)
   result &= msg.get_a_fixed32() == std::numeric_limits<uint32_t>::min();
   result &= msg.get_a_sfixed32() == std::numeric_limits<int32_t>::min();
   result &= almost_equal(msg.get_a_float(), std::numeric_limits<float>::lowest(), FLOAT_EPSILON);
-  result &= msg.get_a_nested_enum() == Test_Simple_Types::Nested_Enum::NE_A;
+  result &= msg.get_a_nested_enum() == Simple_Types::Nested_Enum::NE_A;
   return result;
 }
 
-bool compare_max(const Test_Simple_Types& msg)
+bool compare_max(const Simple_Types& msg)
 {
   bool result = true;
   result &= msg.get_a_int32() == std::numeric_limits<int32_t>::max();
@@ -118,11 +118,11 @@ bool compare_max(const Test_Simple_Types& msg)
   result &= msg.get_a_fixed32() == std::numeric_limits<uint32_t>::max();
   result &= msg.get_a_sfixed32() == std::numeric_limits<int32_t>::max();
   result &= almost_equal(msg.get_a_float(), std::numeric_limits<float>::max(), FLOAT_EPSILON);
-  result &= msg.get_a_nested_enum() == Test_Simple_Types::Nested_Enum::NE_C;
+  result &= msg.get_a_nested_enum() == Simple_Types::Nested_Enum::NE_C;
   return result;
 }
 
-bool compare_average(const Test_Simple_Types& msg)
+bool compare_average(const Simple_Types& msg)
 {
   bool result = true;
   result &= msg.get_a_int32() == std::numeric_limits<int32_t>::max() / 2;
@@ -139,7 +139,7 @@ bool compare_average(const Test_Simple_Types& msg)
   result &= msg.get_a_fixed32() == std::numeric_limits<uint32_t>::max() / 2;
   result &= msg.get_a_sfixed32() == std::numeric_limits<int32_t>::max() / 2;
   result &= almost_equal(msg.get_a_float(), 123.4567f, FLOAT_EPSILON);
-  result &= msg.get_a_nested_enum() == Test_Simple_Types::Nested_Enum::NE_B;
+  result &= msg.get_a_nested_enum() == Simple_Types::Nested_Enum::NE_B;
   return result;
 }
 

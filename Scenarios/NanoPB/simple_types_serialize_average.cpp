@@ -9,7 +9,7 @@ volatile uint8_t g_buffer_checksum = 0;
 
 uint32_t run_scenario()
 {
-  Test_Simple_Types msg = Test_Simple_Types_init_default;
+  Simple_Types msg = Simple_Types_init_default;
   HelperSimpleTypesNanoPB::set_average(msg);
 
   // Create buffer for serialized data
@@ -17,7 +17,7 @@ uint32_t run_scenario()
   pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
 
   // Serialize the message
-  const bool result = pb_encode(&stream, Test_Simple_Types_fields, &msg);
+  const bool result = pb_encode(&stream, Simple_Types_fields, &msg);
 
   // Calculate checksum to prevent dead code elimination
   // The compiler cannot optimize away serialize() since buffer content is used

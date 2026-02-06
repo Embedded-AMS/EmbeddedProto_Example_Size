@@ -5,7 +5,7 @@
 
 uint32_t run_scenario()
 {
-  Test_Simple_Types msg;
+  Simple_Types msg;
   HelperSimpleTypes::set_min(msg);
 
   // Serialize the data to buffer
@@ -19,7 +19,7 @@ uint32_t run_scenario()
   read_buffer.set_bytes_written(buffer_size);
 
   // Clear the message data
-  Test_Simple_Types msg_deserialized;
+  Simple_Types msg_deserialized;
 
   // Deserialize the buffer into the message object
   const auto deserialize_result = msg_deserialized.deserialize(read_buffer);
