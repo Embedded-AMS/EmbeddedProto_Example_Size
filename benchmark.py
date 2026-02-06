@@ -1465,7 +1465,7 @@ def main() -> None:
                     library=args.library,
                     scenario=args.scenario,
                     static_sizes=static_sizes,
-                    dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None, None),
+                    dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
                     git_info=git_info
                 )
 
@@ -1542,7 +1542,7 @@ def main() -> None:
                         library=args.library,
                         scenario=scenario,
                         static_sizes=static_sizes,
-                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None, None),
+                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
                         git_info=git_info
                     )
 
@@ -1629,7 +1629,7 @@ def main() -> None:
                         library=lib,
                         scenario=args.scenario,
                         static_sizes=static_sizes,
-                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None, None),
+                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
                         git_info=git_info
                     )
 
@@ -1712,7 +1712,7 @@ def main() -> None:
                         library=lib,
                         scenario=scenario,
                         static_sizes=static_sizes,
-                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None, None),
+                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
                         git_info=git_info
                     )
 
