@@ -1,0 +1,48 @@
+/*
+ *  Copyright (C) 2020-2024 Embedded AMS B.V. - All Rights Reserved
+ *
+ *  This file is part of Embedded Proto.
+ *
+ *  Embedded Proto is open source software: you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License as published
+ *  by the Free Software Foundation, version 3 of the license.
+ *
+ *  Embedded Proto  is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Embedded Proto. If not, see <https://www.gnu.org/licenses/>.
+ *
+ *  For commercial and closed source application please visit:
+ *  <https://EmbeddedProto.com/license/>.
+ *
+ *  Embedded AMS B.V.
+ *  Info:
+ *    info at EmbeddedProto dot com
+ *
+ *  Postal address:
+ *    Atoomweg 2
+ *    1627 LE, Hoorn
+ *    the Netherlands
+ */
+
+// This file demonstrates repeated fields with length constraints
+// for both NanoPB and EmbeddedProto.
+
+syntax = "proto3";
+
+import "simple_types.proto";
+
+// Message with a simple repeated integer field
+// Using NanoPB options to set maxLength constraint
+message Repeated_Integers {
+  repeated int32 values = 1;
+}
+
+// Message with repeated Simple_Types messages
+// Using NanoPB options to set maxLength constraint
+message Repeated_Messages {
+  repeated Simple_Types items = 1;
+}

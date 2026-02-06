@@ -103,7 +103,14 @@ elseif(LIBRARY STREQUAL "NanoPB")
         get_filename_component(PROTO_NAME ${PROTO_FILE} NAME_WE)
         set(OUTPUT_H "${CMAKE_CURRENT_SOURCE_DIR}/${PROTO_NAME}.pb.h")
         set(OUTPUT_C "${CMAKE_CURRENT_SOURCE_DIR}/${PROTO_NAME}.pb.c")
-        
+
+        # Check if options file exists for this proto file
+        set(OPTIONS_FILE "${CMAKE_SOURCE_DIR}/Protofiles/${PROTO_NAME}.options")
+        set(NANOPB_OPTIONS "")
+        if(EXISTS "${OPTIONS_FILE}")
+            set(NANOPB_OPTIONS "--nanopb_opt=${OPTIONS_FILE}")
+        endif()
+
         if(NOT EXISTS "${OUTPUT_H}" OR "${PROTO_FILE}" IS_NEWER_THAN "${OUTPUT_H}")
             message(STATUS "Generating NanoPB code for ${PROTO_NAME}")
             execute_process(
@@ -111,6 +118,7 @@ elseif(LIBRARY STREQUAL "NanoPB")
                     --plugin=protoc-gen-nanopb=${NANOPB_WRAPPER}
                     --nanopb_out=${CMAKE_CURRENT_SOURCE_DIR}
                     --proto_path=${CMAKE_SOURCE_DIR}/Protofiles
+                    ${NANOPB_OPTIONS}
                     ${PROTO_NAME}.proto
                 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/Protofiles
                 RESULT_VARIABLE PROTOC_RESULT
@@ -120,7 +128,7 @@ elseif(LIBRARY STREQUAL "NanoPB")
                 message(FATAL_ERROR "NanoPB code generation failed: ${PROTOC_ERROR}")
             endif()
         endif()
-        
+
         list(APPEND GENERATED_SOURCES "${OUTPUT_H}" "${OUTPUT_C}")
     endforeach()
     
