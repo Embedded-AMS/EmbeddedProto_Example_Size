@@ -60,6 +60,93 @@ class GitInfo:
     tag: Optional[str]
     is_modified: bool
 
+
+def parse_cmake_optimization_flags(cmake_path: str = 'CMakeLists.txt') -> Dict[str, str]:
+    """
+    Parse optimization flags from CMakeLists.txt for each build type.
+
+    Args:
+        cmake_path: Path to the CMakeLists.txt file (default: 'CMakeLists.txt')
+
+    Returns:
+        Dictionary mapping build type (e.g., 'Release', 'Debug') to optimization flags string
+
+    Raises:
+        FileNotFoundError: If CMakeLists.txt doesn't exist
+        ValueError: If no optimization flags could be parsed
+    """
+    import re
+
+    cmake_file = Path(cmake_path)
+    if not cmake_file.exists():
+        raise FileNotFoundError(f"CMakeLists.txt not found at: {cmake_path}")
+
+    try:
+        content = cmake_file.read_text()
+    except Exception as e:
+        raise ValueError(f"Failed to read CMakeLists.txt: {str(e)}") from e
+
+    flags = {}
+
+    # Pattern to match: set(CMAKE_CXX_FLAGS_<TYPE> "flags" ...)
+    # Example: set(CMAKE_CXX_FLAGS_RELEASE "-Os -DNDEBUG -ffunction-sections -fdata-sections" CACHE STRING "" FORCE)
+    pattern = r'set\s*\(\s*CMAKE_CXX_FLAGS_(\w+)\s+"([^"]+)"'
+
+    matches = re.findall(pattern, content)
+
+    for build_type, flag_string in matches:
+        # Capitalize first letter, lowercase rest (e.g., RELEASE -> Release)
+        build_type_normalized = build_type.capitalize()
+        flags[build_type_normalized] = flag_string
+
+    if not flags:
+        raise ValueError(f"No CMAKE_CXX_FLAGS_* definitions found in {cmake_path}")
+
+    return flags
+
+
+def get_optimization_flags(build_type: str) -> str:
+    """
+    Get optimization flags for a specific build type by parsing CMakeLists.txt.
+
+    Args:
+        build_type: Build type ('Release' or 'Debug')
+
+    Returns:
+        Optimization flags string for the specified build type
+
+    Raises:
+        ValueError: If build type is not found in CMakeLists.txt
+    """
+    try:
+        flags = parse_cmake_optimization_flags()
+        if build_type not in flags:
+            raise ValueError(f"Build type '{build_type}' not found in CMakeLists.txt. "
+                           f"Available types: {', '.join(flags.keys())}")
+        return flags[build_type]
+    except FileNotFoundError:
+        # Fallback to hardcoded defaults if CMakeLists.txt is not found
+        fallback_flags = {
+            'Release': '-Os -DNDEBUG -ffunction-sections -fdata-sections',
+            'Debug': '-Og -g -DDEBUG'
+        }
+        return fallback_flags.get(build_type, '')
+
+
+def get_valid_build_types() -> List[str]:
+    """
+    Get list of valid build types from CMakeLists.txt.
+
+    Returns:
+        List of valid build type names (e.g., ['Release', 'Debug'])
+    """
+    try:
+        flags = parse_cmake_optimization_flags()
+        return list(flags.keys())
+    except (FileNotFoundError, ValueError):
+        # Fallback to defaults
+        return ['Release', 'Debug']
+
 @dataclass
 class BenchmarkResult:
     """Data class to hold complete benchmark results for database storage."""
@@ -74,6 +161,8 @@ class BenchmarkResult:
     library_tag: Optional[str]
     library_modified: bool
     timestamp: str
+    build_type: str
+    optimization_flags: str
 
 def get_available_libraries() -> List[str]:
     """
@@ -325,13 +414,14 @@ def get_user_confirmation(prompt: str) -> bool:
         else:
             print("Please enter 'yes' or 'no'.")
 
-def build_firmware(library: str, scenario: str) -> str:
+def build_firmware(library: str, scenario: str, build_type: str = 'Release') -> str:
     """
     Build firmware for a specific library/scenario combination using CMake.
 
     Args:
         library: Library name (e.g., 'EmbeddedProto')
         scenario: Scenario name (e.g., 'simple_types_serialize_max')
+        build_type: CMake build type ('Release' or 'Debug'), defaults to 'Release'
 
     Returns:
         Path to the built ELF file: 'build/bin/nucleo_f446re_app.elf'
@@ -344,6 +434,11 @@ def build_firmware(library: str, scenario: str) -> str:
     # Validate the library/scenario combination
     if not validate_library_scenario_combination(library, scenario):
         raise ValueError(f"Invalid library/scenario combination: {library}/{scenario}")
+
+    # Validate build type
+    valid_types = get_valid_build_types()
+    if build_type not in valid_types:
+        raise ValueError(f"Invalid build type '{build_type}'. Valid types are: {', '.join(valid_types)}")
 
     # Check if arm-none-eabi-gcc is available
     if not shutil.which('arm-none-eabi-gcc'):
@@ -375,13 +470,17 @@ def build_firmware(library: str, scenario: str) -> str:
         print(f"Creating build directory: {build_dir}")
         build_dir.mkdir(parents=True)
 
-    print(f"Building {library}/{scenario}...")
+    print(f"Building {library}/{scenario} ({build_type})...")
+    print(f"Optimization flags: {get_optimization_flags(build_type)}")
 
     try:
-        # Run cmake configuration
+        # Run cmake configuration with build type
         print("Running cmake configuration...")
         cmake_config_result = subprocess.run(
-            ['cmake', '-B', 'build', f'-DLIBRARY={library}', f'-DSCENARIO={scenario}'],
+            ['cmake', '-B', 'build',
+             f'-DLIBRARY={library}',
+             f'-DSCENARIO={scenario}',
+             f'-DCMAKE_BUILD_TYPE={build_type}'],
             capture_output=True,
             text=True,
             check=True
@@ -907,13 +1006,29 @@ def init_database() -> None:
                     library_commit_hash TEXT NOT NULL,
                     library_branch TEXT,
                     library_tag TEXT,
-                    library_modified BOOLEAN NOT NULL
+                    library_modified BOOLEAN NOT NULL,
+                    build_type TEXT,
+                    optimization_flags TEXT
                 )
             ''')
 
             # Add n_bytes_in_buffer column if it doesn't exist (for existing databases)
             try:
                 cursor.execute('ALTER TABLE benchmark_results ADD COLUMN n_bytes_in_buffer INTEGER')
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
+
+            # Add build_type column if it doesn't exist (for existing databases)
+            try:
+                cursor.execute('ALTER TABLE benchmark_results ADD COLUMN build_type TEXT')
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
+
+            # Add optimization_flags column if it doesn't exist (for existing databases)
+            try:
+                cursor.execute('ALTER TABLE benchmark_results ADD COLUMN optimization_flags TEXT')
             except sqlite3.OperationalError:
                 # Column already exists
                 pass
@@ -951,8 +1066,9 @@ def store_result(result: BenchmarkResult) -> None:
                 INSERT INTO benchmark_results (
                     timestamp, library, scenario, flash_usage_bytes, static_ram_usage_bytes,
                     cpu_cycles, n_bytes_in_buffer,
-                    library_commit_hash, library_branch, library_tag, library_modified
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    library_commit_hash, library_branch, library_tag, library_modified,
+                    build_type, optimization_flags
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 result.timestamp,
                 result.library,
@@ -964,11 +1080,13 @@ def store_result(result: BenchmarkResult) -> None:
                 result.library_commit_hash,
                 result.library_branch,
                 result.library_tag,
-                1 if result.library_modified else 0
+                1 if result.library_modified else 0,
+                result.build_type,
+                result.optimization_flags
             ))
 
             conn.commit()
-            print(f"Benchmark result stored in database for {result.library}/{result.scenario}")
+            print(f"Benchmark result stored in database for {result.library}/{result.scenario} ({result.build_type})")
 
     except sqlite3.Error as e:
         print(f"Warning: Failed to store benchmark result in database: {str(e)}")
@@ -1027,7 +1145,9 @@ def get_latest_results(library: Optional[str] = None, scenario: Optional[str] = 
                     library_branch=row[9],
                     library_tag=row[10],
                     library_modified=bool(row[11]),
-                    timestamp=row[1]
+                    timestamp=row[1],
+                    build_type=row[12] if len(row) > 12 else 'Release',
+                    optimization_flags=row[13] if len(row) > 13 else get_optimization_flags('Release')
                 )
                 results.append(result)
 
@@ -1041,7 +1161,8 @@ def create_benchmark_result(
     scenario: str,
     static_sizes: StaticSizes,
     dynamic_metrics: DynamicMetrics,
-    git_info: Optional[GitInfo]
+    git_info: Optional[GitInfo],
+    build_type: str = 'Release'
 ) -> BenchmarkResult:
     """
     Create a BenchmarkResult object from collected metrics.
@@ -1052,6 +1173,7 @@ def create_benchmark_result(
         static_sizes: Static size metrics
         dynamic_metrics: Dynamic metrics (may contain None values)
         git_info: Git information (may be None for Baseline)
+        build_type: CMake build type ('Release' or 'Debug'), defaults to 'Release'
 
     Returns:
         BenchmarkResult object ready for database storage
@@ -1068,6 +1190,9 @@ def create_benchmark_result(
             is_modified=False
         )
 
+    # Get optimization flags for the build type by parsing CMakeLists.txt
+    optimization_flags = get_optimization_flags(build_type)
+
     return BenchmarkResult(
         library=library,
         scenario=scenario,
@@ -1079,7 +1204,9 @@ def create_benchmark_result(
         library_branch=git_info.branch,
         library_tag=git_info.tag,
         library_modified=git_info.is_modified,
-        timestamp=timestamp
+        timestamp=timestamp,
+        build_type=build_type,
+        optimization_flags=optimization_flags
     )
 
 def display_results(results: List[BenchmarkResult]) -> None:
@@ -1380,8 +1507,25 @@ def main() -> None:
         help="Enable verbose output with detailed tool information"
     )
 
+    # Build type arguments (mutually exclusive, default: release)
+    build_type_group = parser.add_mutually_exclusive_group()
+    build_type_group.add_argument(
+        '--release',
+        action='store_true',
+        default=True,
+        help="Build with Release optimization (-Os, default)"
+    )
+    build_type_group.add_argument(
+        '--debug',
+        action='store_true',
+        help="Build with Debug optimization (-Og)"
+    )
+
     # Parse arguments
     args = parser.parse_args()
+
+    # Determine build type from arguments
+    build_type = 'Debug' if args.debug else 'Release'
 
     # Handle --list-combinations flag
     if args.list_combinations:
@@ -1426,7 +1570,7 @@ def main() -> None:
             print(f"Warning: Could not extract git information: {str(e)}")
 
         try:
-            elf_path = build_firmware(args.library, args.scenario)
+            elf_path = build_firmware(args.library, args.scenario, build_type)
             print(f"Build completed successfully. ELF file: {elf_path}")
 
             # Extract static sizes (SCT-004 implementation)
@@ -1466,7 +1610,8 @@ def main() -> None:
                     scenario=args.scenario,
                     static_sizes=static_sizes,
                     dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
-                    git_info=git_info
+                    git_info=git_info,
+                    build_type=build_type
                 )
 
                 # Store in database
@@ -1499,7 +1644,7 @@ def main() -> None:
         for i, scenario in enumerate(library_scenarios, 1):
             print(f"\n[{i}/{total_scenarios}] Building {args.library}/{scenario}...")
             try:
-                elf_path = build_firmware(args.library, scenario)
+                elf_path = build_firmware(args.library, scenario, build_type)
                 print(f"Build completed successfully. ELF file: {elf_path}")
 
                 # Extract static sizes (SCT-004 implementation)
@@ -1543,7 +1688,8 @@ def main() -> None:
                         scenario=scenario,
                         static_sizes=static_sizes,
                         dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
-                        git_info=git_info
+                        git_info=git_info,
+                        build_type=build_type
                     )
 
                     # Store in database
@@ -1586,7 +1732,7 @@ def main() -> None:
         for i, lib in enumerate(libraries_with_scenario, 1):
             print(f"\n[{i}/{total_libraries}] Building {lib}/{args.scenario}...")
             try:
-                elf_path = build_firmware(lib, args.scenario)
+                elf_path = build_firmware(lib, args.scenario, build_type)
                 print(f"Build completed successfully. ELF file: {elf_path}")
 
                 # Extract static sizes (SCT-004 implementation)
@@ -1630,7 +1776,8 @@ def main() -> None:
                         scenario=args.scenario,
                         static_sizes=static_sizes,
                         dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
-                        git_info=git_info
+                        git_info=git_info,
+                        build_type=build_type
                     )
 
                     # Store in database
@@ -1669,7 +1816,7 @@ def main() -> None:
         for i, (lib, scenario) in enumerate(combinations, 1):
             print(f"\n[{i}/{len(combinations)}] Building {lib}/{scenario}...")
             try:
-                elf_path = build_firmware(lib, scenario)
+                elf_path = build_firmware(lib, scenario, build_type)
                 print(f"Build completed successfully. ELF file: {elf_path}")
 
                 # Extract static sizes (SCT-004 implementation)
@@ -1713,7 +1860,8 @@ def main() -> None:
                         scenario=scenario,
                         static_sizes=static_sizes,
                         dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
-                        git_info=git_info
+                        git_info=git_info,
+                        build_type=build_type
                     )
 
                     # Store in database
