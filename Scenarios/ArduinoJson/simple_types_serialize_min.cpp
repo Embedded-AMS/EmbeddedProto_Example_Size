@@ -13,7 +13,7 @@ uint32_t run_scenario()
   HelperSimpleTypesArduinoJson::set_min(doc);
 
   // Create buffer for serialized data
-  char buffer[100];
+  char buffer[500];
   const uint32_t n_bytes_written = serializeJson(doc, buffer, sizeof(buffer));
 
   // Calculate checksum to prevent dead code elimination

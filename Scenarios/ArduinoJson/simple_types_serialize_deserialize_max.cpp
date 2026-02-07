@@ -13,7 +13,7 @@ uint32_t run_scenario()
   HelperSimpleTypesArduinoJson::set_max(doc);
 
   // Create buffer for serialized data
-  char buffer[100];
+  char buffer[500];
   const auto n_bytes_written = serializeJson(doc, buffer, sizeof(buffer));
 
   // Create deserialization buffer and copy data
