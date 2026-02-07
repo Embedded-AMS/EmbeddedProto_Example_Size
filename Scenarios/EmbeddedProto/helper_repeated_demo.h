@@ -114,6 +114,87 @@ bool compare_average_repeated_messages(const Repeated_Messages<LENGTH>& msg)
   return true;
 }
 
+// Set average values for nested repeated messages
+template<uint32_t OUTER_LENGTH, uint32_t INNER_LENGTH>
+void set_average_nested_repeated_messages(Nested_Repeated_Messages<OUTER_LENGTH, INNER_LENGTH>& msg)
+{
+  // Add OUTER_LENGTH Repeated_Messages objects, each with INNER_LENGTH Simple_Types messages
+  for (uint32_t i = 0; i < OUTER_LENGTH; i++) {
+    Repeated_Messages<INNER_LENGTH> nested_msg;
+    // Add INNER_LENGTH Simple_Types messages with average values
+    for (uint32_t j = 0; j < INNER_LENGTH; j++) {
+      Simple_Types item;
+      // Set average values similar to HelperSimpleTypes::set_average
+      item.set_a_int32(std::numeric_limits<int32_t>::max() / 2);
+      item.set_a_int64(std::numeric_limits<int64_t>::max() / 2);
+      item.set_a_uint32(std::numeric_limits<uint32_t>::max() / 2);
+      item.set_a_uint64(std::numeric_limits<uint64_t>::max() / 2);
+      item.set_a_sint32(std::numeric_limits<int32_t>::max() / 2);
+      item.set_a_sint64(std::numeric_limits<int64_t>::max() / 2);
+      item.set_a_bool(true);
+      item.set_a_enum(Test_Enum::ONEHUNDERTTWENTYSEVEN);
+      item.set_a_fixed64(std::numeric_limits<uint64_t>::max() / 2);
+      item.set_a_sfixed64(std::numeric_limits<int64_t>::max() / 2);
+      item.set_a_double(1234.5678);
+      item.set_a_fixed32(std::numeric_limits<uint32_t>::max() / 2);
+      item.set_a_sfixed32(std::numeric_limits<int32_t>::max() / 2);
+      item.set_a_float(123.4567f);
+      item.set_a_nested_enum(Simple_Types::Nested_Enum::NE_B);
+
+      nested_msg.add_items(item);
+    }
+    msg.add_nested_rm(nested_msg);
+  }
+}
+
+// Compare average values for nested repeated messages
+template<uint32_t OUTER_LENGTH, uint32_t INNER_LENGTH>
+bool compare_average_nested_repeated_messages(const Nested_Repeated_Messages<OUTER_LENGTH, INNER_LENGTH>& msg)
+{
+  if (msg.nested_rm().get_length() != OUTER_LENGTH) {
+    return false;
+  }
+
+  // Epsilon values for floating-point comparisons
+  constexpr float FLOAT_EPSILON = std::numeric_limits<float>::epsilon() * 100;
+  constexpr double DOUBLE_EPSILON = std::numeric_limits<double>::epsilon() * 100;
+
+  for (size_t i = 0; i < OUTER_LENGTH; i++) {
+    const Repeated_Messages<INNER_LENGTH>& nested_msg = msg.nested_rm().get_const(i);
+
+    if (nested_msg.items().get_length() != INNER_LENGTH) {
+      return false;
+    }
+
+    for (size_t j = 0; j < INNER_LENGTH; j++) {
+      const Simple_Types& item = nested_msg.items().get_const(j);
+
+      bool result = true;
+      result &= item.get_a_int32() == std::numeric_limits<int32_t>::max() / 2;
+      result &= item.get_a_int64() == std::numeric_limits<int64_t>::max() / 2;
+      result &= item.get_a_uint32() == std::numeric_limits<uint32_t>::max() / 2;
+      result &= item.get_a_uint64() == std::numeric_limits<uint64_t>::max() / 2;
+      result &= item.get_a_sint32() == std::numeric_limits<int32_t>::max() / 2;
+      result &= item.get_a_sint64() == std::numeric_limits<int64_t>::max() / 2;
+      result &= item.get_a_bool() == true;
+      result &= item.get_a_enum() == Test_Enum::ONEHUNDERTTWENTYSEVEN;
+      result &= item.get_a_fixed64() == std::numeric_limits<uint64_t>::max() / 2;
+      result &= item.get_a_sfixed64() == std::numeric_limits<int64_t>::max() / 2;
+      result &= almost_equal(item.get_a_double(), 1234.5678, DOUBLE_EPSILON);
+      result &= item.get_a_fixed32() == std::numeric_limits<uint32_t>::max() / 2;
+      result &= item.get_a_sfixed32() == std::numeric_limits<int32_t>::max() / 2;
+      result &= almost_equal(item.get_a_float(), 123.4567f, FLOAT_EPSILON);
+      result &= item.get_a_nested_enum() == Simple_Types::Nested_Enum::NE_B;
+
+      if (!result) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 } // End of namespace HelperRepeatedDemo
 
 #endif // HELPER_REPEATED_DEMO

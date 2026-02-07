@@ -6,3 +6,6 @@ Repeated_Integers.values max_count:10
 
 # Set max_count for repeated messages field
 Repeated_Messages.items max_count:5
+
+# Set max_count for nested repeated messages field
+Nested_Repeated_Messages.nested_rm max_count:10

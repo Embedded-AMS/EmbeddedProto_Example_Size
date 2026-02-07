@@ -121,6 +121,92 @@ bool compare_average_repeated_messages(const Repeated_Messages& msg)
   return true;
 }
 
+// Set average values for nested repeated messages
+void set_average_nested_repeated_messages(Nested_Repeated_Messages& msg)
+{
+  // Clear existing items
+  msg.nested_rm_count = 0;
+
+  // Add 10 Repeated_Messages objects, each with 5 Simple_Types messages (max allowed by Repeated_Messages)
+  for (int i = 0; i < 10; i++) {
+    // Initialize the nested message
+    msg.nested_rm[i] = Repeated_Messages_init_default;
+
+    // Clear the nested message items
+    msg.nested_rm[i].items_count = 0;
+
+    // Add 5 Simple_Types messages with average values (max allowed by Repeated_Messages)
+    for (int j = 0; j < 5; j++) {
+      // Copy the default item to the array
+      msg.nested_rm[i].items[j] = Simple_Types_init_default;
+
+      // Set average values similar to HelperSimpleTypesNanoPB::set_average
+      msg.nested_rm[i].items[j].a_int32 = std::numeric_limits<int32_t>::max() / 2;
+      msg.nested_rm[i].items[j].a_int64 = std::numeric_limits<int64_t>::max() / 2;
+      msg.nested_rm[i].items[j].a_uint32 = std::numeric_limits<uint32_t>::max() / 2;
+      msg.nested_rm[i].items[j].a_uint64 = std::numeric_limits<uint64_t>::max() / 2;
+      msg.nested_rm[i].items[j].a_sint32 = std::numeric_limits<int32_t>::max() / 2;
+      msg.nested_rm[i].items[j].a_sint64 = std::numeric_limits<int64_t>::max() / 2;
+      msg.nested_rm[i].items[j].a_bool = true;
+      msg.nested_rm[i].items[j].a_enum = Test_Enum_ONEHUNDERTTWENTYSEVEN;
+      msg.nested_rm[i].items[j].a_fixed64 = std::numeric_limits<uint64_t>::max() / 2;
+      msg.nested_rm[i].items[j].a_sfixed64 = std::numeric_limits<int64_t>::max() / 2;
+      msg.nested_rm[i].items[j].a_double = 1234.5678;
+      msg.nested_rm[i].items[j].a_fixed32 = std::numeric_limits<uint32_t>::max() / 2;
+      msg.nested_rm[i].items[j].a_sfixed32 = std::numeric_limits<int32_t>::max() / 2;
+      msg.nested_rm[i].items[j].a_float = 123.4567f;
+      msg.nested_rm[i].items[j].a_nested_enum = Simple_Types_Nested_Enum_NE_B;
+
+      msg.nested_rm[i].items_count++;
+    }
+
+    msg.nested_rm_count++;
+  }
+}
+
+// Compare average values for nested repeated messages
+bool compare_average_nested_repeated_messages(const Nested_Repeated_Messages& msg)
+{
+  if (msg.nested_rm_count != 10) {
+    return false;
+  }
+
+  for (size_t i = 0; i < 10; i++) {
+    const Repeated_Messages& nested_msg = msg.nested_rm[i];
+
+    if (nested_msg.items_count != 5) {
+      return false;
+    }
+
+    for (size_t j = 0; j < 5; j++) {
+      const Simple_Types& item = nested_msg.items[j];
+
+      bool result = true;
+      result &= item.a_int32 == std::numeric_limits<int32_t>::max() / 2;
+      result &= item.a_int64 == std::numeric_limits<int64_t>::max() / 2;
+      result &= item.a_uint32 == std::numeric_limits<uint32_t>::max() / 2;
+      result &= item.a_uint64 == std::numeric_limits<uint64_t>::max() / 2;
+      result &= item.a_sint32 == std::numeric_limits<int32_t>::max() / 2;
+      result &= item.a_sint64 == std::numeric_limits<int64_t>::max() / 2;
+      result &= item.a_bool == true;
+      result &= item.a_enum == Test_Enum_ONEHUNDERTTWENTYSEVEN;
+      result &= item.a_fixed64 == std::numeric_limits<uint64_t>::max() / 2;
+      result &= item.a_sfixed64 == std::numeric_limits<int64_t>::max() / 2;
+      result &= almost_equal(item.a_double, 1234.5678, DOUBLE_EPSILON);
+      result &= item.a_fixed32 == std::numeric_limits<uint32_t>::max() / 2;
+      result &= item.a_sfixed32 == std::numeric_limits<int32_t>::max() / 2;
+      result &= almost_equal(item.a_float, 123.4567f, FLOAT_EPSILON);
+      result &= item.a_nested_enum == Simple_Types_Nested_Enum_NE_B;
+
+      if (!result) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 } // End of namespace HelperRepeatedDemoNanoPB
 
 #endif // HELPER_REPEATED_DEMO_NANOPB

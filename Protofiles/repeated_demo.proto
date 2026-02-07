@@ -42,7 +42,13 @@ message Repeated_Integers {
 }
 
 // Message with repeated Simple_Types messages
-// Using NanoPB options to set maxLength constraint
+// Using NanoPB options to set maxLength constraint.
 message Repeated_Messages {
   repeated Simple_Types items = 1;
+}
+
+// Message with a repeated message field which in it self also has a repeated message in it.
+// Again using NanoPB options to set maxLength constraint.
+message Nested_Repeated_Messages {
+  repeated Repeated_Messages nested_rm = 1;
 }
