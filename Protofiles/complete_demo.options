@@ -1,0 +1,12 @@
+# NanoPB options file for complete_demo.proto
+# Sets max_count constraints for repeated fields to match EmbeddedProto template parameters
+
+# EnvelopToMCU: 5 configurations (matches EnvelopToMCU<5>)
+EnvelopToMCU.configuration max_count:5
+
+# States: 5 state entries (matches States<5>)
+States.states max_count:5
+
+# Measurement: 25 data points and 25 timestamps (matches Measurement<25, 25>)
+Measurement.data max_count:25
+Measurement.time max_count:25

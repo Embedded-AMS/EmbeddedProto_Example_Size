@@ -1,0 +1,204 @@
+/*
+ *  Copyright (C) 2020-2026 Embedded AMS B.V. - All Rights Reserved
+ *
+ *  This file is part of Embedded Proto.
+ *
+ *  Embedded Proto is open source software: you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License as published
+ *  by the Free Software Foundation, version 3 of the license.
+ *
+ *  Embedded Proto  is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Embedded Proto. If not, see <https://www.gnu.org/licenses/>.
+ *
+ *  For commercial and closed source application please visit:
+ * <https://embeddedproto.com/pricing/>.
+ *
+ *  Embedded AMS B.V.
+ *  Info:
+ *    info at EmbeddedProto dot com
+ *
+ *  Postal address:
+ *    Atoomweg 2
+ *    1627 LE, Hoorn
+ *    the Netherlands
+ */
+ 
+syntax = "proto3";
+
+message Config
+{
+  enum GPIO_MODE
+  {
+    GPIO_MODE_UNKNOWN = 0;
+    INPUT = 1;
+    OUTPUT_PP = 2;
+    OUTPUT_OD = 3;
+  }
+
+  message GPIO
+  {
+    uint32 pin = 1;
+    GPIO_MODE mode = 2;
+  }
+
+  message UART
+  {
+    uint32 id = 1; 
+    uint32 baud = 2;
+    uint32 data_bits = 3;  // 5, 6, 7, 8, or 9
+    uint32 stop_bits = 4;  // 1 or 2
+    bool parity_enable = 5;
+    bool parity_even = 6;  // true for even, false for odd
+    bool flow_control = 7;  // Hardware flow control enable
+  }
+
+  message I2C
+  {
+    uint32 id = 1;
+    uint32 clock_speed = 2;  // in Hz
+    bool pullup_enable = 3;  // Enable internal pullups
+    uint32 timeout = 4;  // in milliseconds
+    bool general_call_enable = 5;  // Enable general call addressing
+  }
+
+  message SPI
+  {
+    uint32 id = 1; 
+    uint32 baud_rate_prescaler = 2;  // Clock prescaler value
+    bool clock_polarity = 3;  // CPOL - clock polarity
+    bool clock_phase = 4;  // CPHA - clock phase
+    bool msb_first = 5;  // Data format: true for MSB first, false for LSB first
+    bool software_slave_management = 6;  // Enable/disable software slave management
+    bool internal_slave_select = 7;  // Use internal slave select (NSS) pin
+  }
+
+  message Motor
+  {
+    uint32 spi_id = 1;
+    bool enabled = 2;
+    bool enable_micro_stepping = 3;
+    bool home_direction_inverted = 4;
+    uint32 home_switch_pin = 5;
+  }
+
+  message Encoder
+  {
+    uint32 gpio_pin_a = 1;
+    uint32 gpio_pin_b = 2;
+    bool inverted = 3;
+  }
+
+  oneof peripheral
+  {
+    GPIO gpio = 10;
+    UART uart = 11;
+    I2C i2c = 12;
+    SPI spi = 13;
+  }
+
+  oneof device
+  {
+    Motor motor = 20;
+    Encoder encoder = 21;
+  }
+}
+
+message State
+{
+  message GPIO
+  {
+    bool value = 1;  // Current GPIO pin value (high/low)
+    uint64 last_change_timestamp = 2;  // Timestamp of last state change
+  }
+
+  message Motor
+  {
+    int32 position = 1;  // Current motor position in steps
+    int32 target_position = 2;  // Target motor position in steps
+    uint32 speed = 3;  // Current motor speed in steps per second
+    bool is_moving = 4;  // Motor movement status
+    bool is_homed = 5;  // Motor homing status
+    bool fault_detected = 6;  // Fault detection flag
+    uint32 current = 7;  // Current motor current in mA
+  }
+
+  message Encoder
+  {
+    int32 position = 1;  // Current encoder position
+    int32 velocity = 2;  // Current encoder velocity
+    bool direction = 3;  // Current direction (true = forward, false = reverse)
+    uint64 last_pulse_timestamp = 4;  // Timestamp of last encoder pulse
+    uint32 pulses_per_revolution = 5;  // Encoder resolution
+  }
+
+  uint64 timestamp = 1;
+ 
+  oneof state
+  {
+    GPIO gpio = 2;
+    Motor motor = 3;
+    Encoder encoder = 4;
+  }
+}
+
+message Command
+{
+  message GPIO
+  {
+    bool set_value = 1;  // Set GPIO pin value
+    bool toggle = 2;  // Toggle GPIO pin value
+    uint32 pulse_duration_ms = 3;  // Pulse duration in milliseconds (0 = no pulse)
+  }
+
+  message Motor
+  {
+    int32 target_position = 1;  // Target position in steps
+    uint32 target_speed = 2;  // Target speed in steps per second
+    bool enable = 3;  // Enable/disable motor
+    bool home = 4;  // Home motor command
+    bool emergency_stop = 5;  // Emergency stop command
+    bool clear_fault = 6;  // Clear fault condition
+    uint32 acceleration = 7;  // Acceleration in steps per second squared
+    uint32 deceleration = 8;  // Deceleration in steps per second squared
+  }
+
+  uint32 command_id = 1;
+
+  oneof command
+  {
+    GPIO gpio = 2;
+    Motor motor = 3;
+  }
+  
+}
+
+message States
+{
+  repeated State states = 1;
+}
+
+message Measurement
+{
+  repeated float data = 1;
+  repeated uint64 time = 2;
+}
+
+message EnvelopToMCU
+{
+  repeated Config configuration = 1;
+  Command command = 2;
+}
+
+message EnvelopFromMCU
+{
+  oneof data
+  {
+    States states = 1;
+    Measurement measurement = 2;
+  }
+}
