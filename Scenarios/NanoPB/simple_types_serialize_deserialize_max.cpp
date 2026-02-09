@@ -44,7 +44,7 @@ uint32_t run_scenario()
   HelperSimpleTypesNanoPB::set_max(msg);
 
   // Create buffer for serialized data
-  uint8_t buffer[100];
+  uint8_t buffer[150];
   pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
 
   // Serialize the message
@@ -53,8 +53,16 @@ uint32_t run_scenario()
     return 0;
   }
 
+  // Calculate checksum to prevent dead code elimination
+  // The compiler cannot optimize away pb_encode() since buffer content is used
+  uint8_t checksum = 0;
+  for (uint32_t i = 0; i < stream.bytes_written; i++) {
+    checksum ^= buffer[i];
+  }
+  g_buffer_checksum = checksum;
+  
   // Create deserialization buffer and copy data
-  uint8_t deserialize_buffer[100];
+  uint8_t deserialize_buffer[150];
   const uint32_t buffer_size = stream.bytes_written;
   memcpy(deserialize_buffer, buffer, buffer_size);
 

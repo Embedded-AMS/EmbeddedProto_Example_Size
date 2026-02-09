@@ -43,11 +43,11 @@ uint32_t run_scenario()
   HelperRepeatedDemoArduinoJson::set_average_nested_repeated_messages(doc);
 
   // Create buffer for serialized data
-  char buffer[10000];
+  char buffer[20000];
   const auto n_bytes_written = serializeJson(doc, buffer, sizeof(buffer));
 
   // Create deserialization buffer and copy data
-  char deserialize_buffer[10000];
+  char deserialize_buffer[20000];
   memcpy(deserialize_buffer, buffer, n_bytes_written);
 
   // Clear the document data

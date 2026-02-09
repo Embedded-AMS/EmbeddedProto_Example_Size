@@ -43,11 +43,19 @@ uint32_t run_scenario()
   HelperSimpleTypesArduinoJson::set_max(doc);
 
   // Create buffer for serialized data
-  char buffer[500];
+  char buffer[1500];
   const auto n_bytes_written = serializeJson(doc, buffer, sizeof(buffer));
 
+  // Calculate checksum to prevent dead code elimination
+  // The compiler cannot optimize away serializeJson() since buffer content is used
+  uint8_t checksum = 0;
+  for (uint32_t i = 0; i < n_bytes_written; i++) {
+    checksum ^= static_cast<uint8_t>(buffer[i]);
+  }
+  g_buffer_checksum = checksum;
+
   // Create deserialization buffer and copy data
-  char deserialize_buffer[100];
+  char deserialize_buffer[1500];
   memcpy(deserialize_buffer, buffer, n_bytes_written);
 
   // Clear the document data

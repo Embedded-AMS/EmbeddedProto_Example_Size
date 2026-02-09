@@ -43,10 +43,19 @@ namespace HelperSimpleTypesArduinoJson
 constexpr float FLOAT_EPSILON = std::numeric_limits<float>::epsilon() * 100;
 constexpr double DOUBLE_EPSILON = std::numeric_limits<double>::epsilon() * 100;
 
-// Helper function for floating-point comparison
+// Helper function for floating-point comparison using relative epsilon
 template<typename T>
 bool almost_equal(T a, T b, T epsilon) {
-    return std::abs(a - b) <= epsilon;
+    // Handle exact equality (including infinities and zeros)
+    if (a == b) {
+        return true;
+    }
+    
+    // Use relative comparison that scales with the magnitude
+    T diff = std::abs(a - b);
+    T largest = std::max(std::abs(a), std::abs(b));
+    
+    return diff <= largest * epsilon;
 }
 
 void set_min(JsonDocument& doc)
