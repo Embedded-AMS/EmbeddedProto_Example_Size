@@ -1,0 +1,23 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Current Scenario",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "LIBRARY=$(basename \"${relativeFileDirname}\") && SCENARIO=\"${fileBasenameNoExtension}\" && echo \"Building: LIBRARY=$LIBRARY SCENARIO=$SCENARIO\" && rm -rf build/* && cmake -B build -DLIBRARY=$LIBRARY -DSCENARIO=$SCENARIO -DCMAKE_BUILD_TYPE=Debug && cmake --build build"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        }
+    ]
+}
