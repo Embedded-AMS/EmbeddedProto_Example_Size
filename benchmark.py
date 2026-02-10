@@ -17,8 +17,8 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Tuple
 from datetime import datetime, UTC
+import glob
 
 # Try to import tabulate for pretty table formatting, fall back to manual formatting
 try:
@@ -414,9 +414,60 @@ def get_user_confirmation(prompt: str) -> bool:
         else:
             print("Please enter 'yes' or 'no'.")
 
+
+def clean_build_artifacts() -> None:
+    """
+    Remove all build results and generated files.
+
+    This function cleans:
+    - All subdirectories in build/
+    - Generated .h, .c, .pb.h, .pb.c files in Generated/
+    - Does NOT remove Generated/CMakeLists.txt
+    """
+    print("Cleaning build artifacts...")
+
+    # Clean build directory
+    build_dir = Path('build')
+    if build_dir.exists():
+        # Remove all library subdirectories in build/
+        for item in build_dir.iterdir():
+            if item.is_dir():
+                print(f"  Removing {item}")
+                shutil.rmtree(item)
+            else:
+                # Also remove any files in the build root
+                print(f"  Removing {item}")
+                item.unlink()
+        print(f"Cleaned build directory: {build_dir}")
+    else:
+        print("Build directory does not exist, nothing to clean.")
+
+    # Clean generated files in Generated/ directory
+    generated_dir = Path('Generated')
+    if generated_dir.exists():
+        # Patterns for generated files to remove
+        patterns = ['*.h', '*.c', '*.pb.h', '*.pb.c']
+        files_to_preserve = ['CMakeLists.txt']
+
+        for pattern in patterns:
+            for file_path in generated_dir.glob(pattern):
+                if file_path.name not in files_to_preserve:
+                    print(f"  Removing {file_path}")
+                    file_path.unlink()
+
+        print(f"Cleaned generated files in: {generated_dir}")
+    else:
+        print("Generated directory does not exist, nothing to clean.")
+
+    print("Clean completed.")
+
+
 def build_firmware(library: str, scenario: str, build_type: str = 'Release') -> str:
     """
     Build firmware for a specific library/scenario combination using CMake.
+
+    Each library/scenario combination gets its own build directory to allow
+    comparing build results without overwriting previous builds.
 
     Args:
         library: Library name (e.g., 'EmbeddedProto')
@@ -424,7 +475,7 @@ def build_firmware(library: str, scenario: str, build_type: str = 'Release') -> 
         build_type: CMake build type ('Release' or 'Debug'), defaults to 'Release'
 
     Returns:
-        Path to the built ELF file: 'build/bin/nucleo_f446re_app.elf'
+        Path to the built ELF file: 'build/{library}/{scenario}/bin/nucleo_f446re_app.elf'
 
     Raises:
         ValueError: If library/scenario combination is invalid
@@ -454,30 +505,24 @@ def build_firmware(library: str, scenario: str, build_type: str = 'Release') -> 
             "On Ubuntu/Debian: sudo apt install cmake"
         )
 
-    build_dir = Path('build')
+    # Use library/scenario-specific build directory
+    build_dir = Path('build') / library / scenario
     elf_path = build_dir / 'bin' / 'nucleo_f446re_app.elf'
 
-    # Clean build directory if it exists
-    if build_dir.exists():
-        print(f"Cleaning build directory: {build_dir}")
-        # Remove all contents but keep the directory
-        for item in build_dir.iterdir():
-            if item.is_dir():
-                shutil.rmtree(item)
-            else:
-                item.unlink()
-    else:
+    # Create build directory if it doesn't exist (no need to clean - CMake handles incremental builds)
+    if not build_dir.exists():
         print(f"Creating build directory: {build_dir}")
         build_dir.mkdir(parents=True)
 
     print(f"Building {library}/{scenario} ({build_type})...")
+    print(f"Build directory: {build_dir}")
     print(f"Optimization flags: {get_optimization_flags(build_type)}")
 
     try:
         # Run cmake configuration with build type
         print("Running cmake configuration...")
         cmake_config_result = subprocess.run(
-            ['cmake', '-B', 'build',
+            ['cmake', '-B', str(build_dir),
              f'-DLIBRARY={library}',
              f'-DSCENARIO={scenario}',
              f'-DCMAKE_BUILD_TYPE={build_type}'],
@@ -490,7 +535,7 @@ def build_firmware(library: str, scenario: str, build_type: str = 'Release') -> 
         # Run cmake build
         print("Running cmake build...")
         cmake_build_result = subprocess.run(
-            ['cmake', '--build', 'build'],
+            ['cmake', '--build', str(build_dir)],
             capture_output=True,
             text=True,
             check=True
@@ -1496,6 +1541,12 @@ def main() -> None:
     )
 
     parser.add_argument(
+        '--clean',
+        action='store_true',
+        help="Remove all build results and generated files, then exit"
+    )
+
+    parser.add_argument(
         '--skip-checks',
         action='store_true',
         help="Skip tool dependency checking (for CI/advanced users)"
@@ -1530,6 +1581,11 @@ def main() -> None:
     # Handle --list-combinations flag
     if args.list_combinations:
         list_scenario_combinations()
+        sys.exit(0)
+
+    # Handle --clean flag
+    if args.clean:
+        clean_build_artifacts()
         sys.exit(0)
 
     # Discover available scenarios
