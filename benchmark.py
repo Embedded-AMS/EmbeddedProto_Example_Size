@@ -42,9 +42,10 @@ LIBRARY_TO_EXTERNAL_DIR = {
 
 @dataclass
 class StaticSizes:
-    """Data class to hold static size metrics."""
-    flash_usage_bytes: int
-    static_ram_usage_bytes: int
+    """Data class to hold static size metrics (text, data, bss from arm-none-eabi-size)."""
+    text_bytes: int
+    data_bytes: int
+    bss_bytes: int
 
 @dataclass
 class DynamicMetrics:
@@ -152,8 +153,9 @@ class BenchmarkResult:
     """Data class to hold complete benchmark results for database storage."""
     library: str
     scenario: str
-    flash_usage_bytes: int
-    static_ram_usage_bytes: int
+    text_bytes: int
+    data_bytes: int
+    bss_bytes: int
     cpu_cycles: Optional[int]
     n_bytes_in_buffer: Optional[int]
     library_commit_hash: str
@@ -642,20 +644,10 @@ def extract_static_sizes(elf_path: str) -> StaticSizes:
         except (ValueError, IndexError) as e:
             raise ValueError(f"Could not parse size values from arm-none-eabi-size output: {result.stdout}") from e
 
-        # Calculate flash usage (text + data)
-        flash_usage = text_size + data_size
-
-        # Calculate static RAM usage
-        if nm_available:
-            # Use more accurate method with arm-none-eabi-nm
-            static_ram_usage = _calculate_static_ram_with_nm(elf_path, data_size)
-        else:
-            # Fallback to simple data + bss calculation
-            static_ram_usage = data_size + bss_size
-
         return StaticSizes(
-            flash_usage_bytes=flash_usage,
-            static_ram_usage_bytes=static_ram_usage
+            text_bytes=text_size,
+            data_bytes=data_size,
+            bss_bytes=bss_size
         )
 
     except subprocess.CalledProcessError as e:
@@ -1044,8 +1036,9 @@ def init_database() -> None:
                     timestamp DATETIME NOT NULL,
                     library TEXT NOT NULL,
                     scenario TEXT NOT NULL,
-                    flash_usage_bytes INTEGER NOT NULL,
-                    static_ram_usage_bytes INTEGER NOT NULL,
+                    text_bytes INTEGER NOT NULL,
+                    data_bytes INTEGER NOT NULL,
+                    bss_bytes INTEGER NOT NULL,
                     cpu_cycles INTEGER,
                     n_bytes_in_buffer INTEGER,
                     library_commit_hash TEXT NOT NULL,
@@ -1056,6 +1049,13 @@ def init_database() -> None:
                     optimization_flags TEXT
                 )
             ''')
+
+            # Add bss_bytes column if it doesn't exist (for existing databases migrating from old schema)
+            try:
+                cursor.execute('ALTER TABLE benchmark_results ADD COLUMN bss_bytes INTEGER')
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
 
             # Add n_bytes_in_buffer column if it doesn't exist (for existing databases)
             try:
@@ -1109,17 +1109,18 @@ def store_result(result: BenchmarkResult) -> None:
             # Insert the benchmark result
             cursor.execute('''
                 INSERT INTO benchmark_results (
-                    timestamp, library, scenario, flash_usage_bytes, static_ram_usage_bytes,
+                    timestamp, library, scenario, text_bytes, data_bytes, bss_bytes,
                     cpu_cycles, n_bytes_in_buffer,
                     library_commit_hash, library_branch, library_tag, library_modified,
                     build_type, optimization_flags
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 result.timestamp,
                 result.library,
                 result.scenario,
-                result.flash_usage_bytes,
-                result.static_ram_usage_bytes,
+                result.text_bytes,
+                result.data_bytes,
+                result.bss_bytes,
                 result.cpu_cycles,
                 result.n_bytes_in_buffer,
                 result.library_commit_hash,
@@ -1182,17 +1183,18 @@ def get_latest_results(library: Optional[str] = None, scenario: Optional[str] = 
                 result = BenchmarkResult(
                     library=row[2],
                     scenario=row[3],
-                    flash_usage_bytes=row[4],
-                    static_ram_usage_bytes=row[5],
-                    cpu_cycles=row[6],
-                    n_bytes_in_buffer=row[7],
-                    library_commit_hash=row[8],
-                    library_branch=row[9],
-                    library_tag=row[10],
-                    library_modified=bool(row[11]),
+                    text_bytes=row[4],
+                    data_bytes=row[5],
+                    bss_bytes=row[6],
+                    cpu_cycles=row[7],
+                    n_bytes_in_buffer=row[8],
+                    library_commit_hash=row[9],
+                    library_branch=row[10],
+                    library_tag=row[11],
+                    library_modified=bool(row[12]),
                     timestamp=row[1],
-                    build_type=row[12] if len(row) > 12 else 'Release',
-                    optimization_flags=row[13] if len(row) > 13 else get_optimization_flags('Release')
+                    build_type=row[13] if len(row) > 13 else 'Release',
+                    optimization_flags=row[14] if len(row) > 14 else get_optimization_flags('Release')
                 )
                 results.append(result)
 
@@ -1241,8 +1243,9 @@ def create_benchmark_result(
     return BenchmarkResult(
         library=library,
         scenario=scenario,
-        flash_usage_bytes=static_sizes.flash_usage_bytes,
-        static_ram_usage_bytes=static_sizes.static_ram_usage_bytes,
+        text_bytes=static_sizes.text_bytes,
+        data_bytes=static_sizes.data_bytes,
+        bss_bytes=static_sizes.bss_bytes,
         cpu_cycles=dynamic_metrics.cpu_cycles,
         n_bytes_in_buffer=dynamic_metrics.n_bytes_in_buffer,
         library_commit_hash=git_info.commit_hash,
@@ -1262,9 +1265,8 @@ def display_results(results: List[BenchmarkResult]) -> None:
         results: List of BenchmarkResult objects to display
 
     Acceptance Criteria:
-    - Table columns: Library, Scenario, Flash (bytes), Static RAM (bytes),
-    - Stack Usage (bytes), Heap Usage (bytes), CPU Cycles, Commit
-    - Stack Usage, Heap Usage, and CPU Cycles show 'N/A' if not measured (--flash not used)
+    - Table columns: Library, Scenario, text (bytes), data (bytes), bss (bytes), CPU Cycles, Commit
+    - CPU Cycles show 'N/A' if not measured (--flash not used)
     - Commit hash is truncated to first 8 characters
     - Table header is clearly separated from data rows
     - Summary row shows totals or averages if multiple results
@@ -1276,8 +1278,9 @@ def display_results(results: List[BenchmarkResult]) -> None:
 
     # Prepare table data
     table_data = []
-    total_flash = 0
-    total_static_ram = 0
+    total_text = 0
+    total_data = 0
+    total_bss = 0
     total_cpu_cycles = 0
 
     for result in results:
@@ -1285,16 +1288,18 @@ def display_results(results: List[BenchmarkResult]) -> None:
         row = [
             result.library,
             result.scenario,
-            f"{result.flash_usage_bytes:,}",
-            f"{result.static_ram_usage_bytes:,}",
+            f"{result.text_bytes:,}",
+            f"{result.data_bytes:,}",
+            f"{result.bss_bytes:,}",
             f"{result.cpu_cycles:,}" if result.cpu_cycles is not None else "N/A",
             result.library_commit_hash[:8] if result.library_commit_hash else "N/A"
         ]
         table_data.append(row)
 
         # Accumulate totals for summary
-        total_flash += result.flash_usage_bytes
-        total_static_ram += result.static_ram_usage_bytes
+        total_text += result.text_bytes
+        total_data += result.data_bytes
+        total_bss += result.bss_bytes
         if result.cpu_cycles is not None:
             total_cpu_cycles += result.cpu_cycles
 
@@ -1302,8 +1307,9 @@ def display_results(results: List[BenchmarkResult]) -> None:
     headers = [
         "Library",
         "Scenario",
-        "Flash (bytes)",
-        "Static RAM (bytes)",
+        "text (bytes)",
+        "data (bytes)",
+        "bss (bytes)",
         "CPU Cycles",
         "Commit"
     ]
@@ -1316,7 +1322,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
         # Add summary row if multiple results
         if len(results) > 1:
             summary_data = [
-                ["TOTAL/AVG", "", f"{total_flash:,}", f"{total_static_ram:,}"]
+                ["TOTAL/AVG", "", f"{total_text:,}", f"{total_data:,}", f"{total_bss:,}"]
             ]
             if total_cpu_cycles > 0:
                 summary_data[0].append(f"{total_cpu_cycles:,}")
@@ -1352,7 +1358,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
 
             # Build summary row
             summary_row = ["TOTAL/AVG", ""]
-            summary_row.extend([f"{total_flash:,}", f"{total_static_ram:,}"])
+            summary_row.extend([f"{total_text:,}", f"{total_data:,}", f"{total_bss:,}"])
 
             if total_cpu_cycles > 0:
                 summary_row.append(f"{total_cpu_cycles:,}")
@@ -1633,8 +1639,9 @@ def main() -> None:
             try:
                 static_sizes = extract_static_sizes(elf_path)
                 print(f"Static sizes extracted:")
-                print(f"  Flash usage: {static_sizes.flash_usage_bytes} bytes")
-                print(f"  Static RAM usage: {static_sizes.static_ram_usage_bytes} bytes")
+                print(f"  text: {static_sizes.text_bytes} bytes")
+                print(f"  data: {static_sizes.data_bytes} bytes")
+                print(f"  bss: {static_sizes.bss_bytes} bytes")
             except Exception as e:
                 print(f"Warning: Could not extract static sizes: {str(e)}")
 
@@ -1707,8 +1714,9 @@ def main() -> None:
                 try:
                     static_sizes = extract_static_sizes(elf_path)
                     print(f"Static sizes extracted:")
-                    print(f"  Flash usage: {static_sizes.flash_usage_bytes} bytes")
-                    print(f"  Static RAM usage: {static_sizes.static_ram_usage_bytes} bytes")
+                    print(f"  text: {static_sizes.text_bytes} bytes")
+                    print(f"  data: {static_sizes.data_bytes} bytes")
+                    print(f"  bss: {static_sizes.bss_bytes} bytes")
                 except Exception as e:
                     print(f"Warning: Could not extract static sizes: {str(e)}")
 
@@ -1795,8 +1803,9 @@ def main() -> None:
                 try:
                     static_sizes = extract_static_sizes(elf_path)
                     print(f"Static sizes extracted:")
-                    print(f"  Flash usage: {static_sizes.flash_usage_bytes} bytes")
-                    print(f"  Static RAM usage: {static_sizes.static_ram_usage_bytes} bytes")
+                    print(f"  text: {static_sizes.text_bytes} bytes")
+                    print(f"  data: {static_sizes.data_bytes} bytes")
+                    print(f"  bss: {static_sizes.bss_bytes} bytes")
                 except Exception as e:
                     print(f"Warning: Could not extract static sizes: {str(e)}")
 
@@ -1879,8 +1888,9 @@ def main() -> None:
                 try:
                     static_sizes = extract_static_sizes(elf_path)
                     print(f"Static sizes extracted:")
-                    print(f"  Flash usage: {static_sizes.flash_usage_bytes} bytes")
-                    print(f"  Static RAM usage: {static_sizes.static_ram_usage_bytes} bytes")
+                    print(f"  text: {static_sizes.text_bytes} bytes")
+                    print(f"  data: {static_sizes.data_bytes} bytes")
+                    print(f"  bss: {static_sizes.bss_bytes} bytes")
                 except Exception as e:
                     print(f"Warning: Could not extract static sizes: {str(e)}")
 
