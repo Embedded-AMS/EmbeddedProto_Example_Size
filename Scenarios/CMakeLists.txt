@@ -80,6 +80,22 @@ target_include_directories(scenario_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../Firmware/Nucleo-F446RE/Drivers/CMSIS/Include
 )
 
+# Configure benchmark mode compile definitions for EmbeddedProto runtime.
+# Map benchmark mode to EP_SERIALIZATION_MODE build flag:
+#   normal  -> EP_SERIALIZATION_MODE_FULL
+#   partial -> EP_SERIALIZATION_MODE_PARTIAL
+if(LIBRARY STREQUAL "EmbeddedProto")
+    if(BENCHMARK_MODE STREQUAL "partial")
+        target_compile_definitions(scenario_lib PRIVATE
+            EP_SERIALIZATION_MODE=EP_SERIALIZATION_MODE_PARTIAL
+        )
+    else()
+        target_compile_definitions(scenario_lib PRIVATE
+            EP_SERIALIZATION_MODE=EP_SERIALIZATION_MODE_FULL
+        )
+    endif()
+endif()
+
 # For EmbeddedProto scenarios, add the EmbeddedProto source directory and source files
 if(LIBRARY STREQUAL "EmbeddedProto")
     target_include_directories(scenario_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../External/EmbeddedProto/src)
@@ -104,6 +120,7 @@ target_compile_options(scenario_lib PRIVATE
 target_compile_definitions(scenario_lib PRIVATE
     SCENARIO_LIBRARY="${LIBRARY}"
     SCENARIO_NAME="${SCENARIO}"
+    BENCHMARK_MODE="${BENCHMARK_MODE}"
     STM32F446xx
 )
 

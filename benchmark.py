@@ -165,6 +165,7 @@ class BenchmarkResult:
     timestamp: str
     build_type: str
     optimization_flags: str
+    benchmark_mode: str
 
 def get_available_libraries() -> List[str]:
     """
@@ -464,7 +465,12 @@ def clean_build_artifacts() -> None:
     print("Clean completed.")
 
 
-def build_firmware(library: str, scenario: str, build_type: str = 'Release') -> str:
+def build_firmware(
+    library: str,
+    scenario: str,
+    build_type: str = 'Release',
+    benchmark_mode: str = 'normal'
+) -> str:
     """
     Build firmware for a specific library/scenario combination using CMake.
 
@@ -475,6 +481,7 @@ def build_firmware(library: str, scenario: str, build_type: str = 'Release') -> 
         library: Library name (e.g., 'EmbeddedProto')
         scenario: Scenario name (e.g., 'simple_types_serialize_max')
         build_type: CMake build type ('Release' or 'Debug'), defaults to 'Release'
+        benchmark_mode: Benchmark mode ('normal' or 'partial'), defaults to 'normal'
 
     Returns:
         Path to the built ELF file: 'build/{library}/{scenario}/bin/nucleo_f446re_app.elf'
@@ -507,8 +514,13 @@ def build_firmware(library: str, scenario: str, build_type: str = 'Release') -> 
             "On Ubuntu/Debian: sudo apt install cmake"
         )
 
-    # Use library/scenario-specific build directory
-    build_dir = Path('build') / library / scenario
+    # Validate benchmark mode
+    if benchmark_mode not in ['normal', 'partial']:
+        raise ValueError(f"Invalid benchmark mode '{benchmark_mode}'. Valid modes are: normal, partial")
+
+    # Use library/mode/scenario-specific build directory
+    # This prevents CMake cache contamination between benchmark modes.
+    build_dir = Path('build') / library / benchmark_mode / scenario
     elf_path = build_dir / 'bin' / 'nucleo_f446re_app.elf'
 
     # Create build directory if it doesn't exist (no need to clean - CMake handles incremental builds)
@@ -516,7 +528,7 @@ def build_firmware(library: str, scenario: str, build_type: str = 'Release') -> 
         print(f"Creating build directory: {build_dir}")
         build_dir.mkdir(parents=True)
 
-    print(f"Building {library}/{scenario} ({build_type})...")
+    print(f"Building {library}/{scenario} ({build_type}, mode={benchmark_mode})...")
     print(f"Build directory: {build_dir}")
     print(f"Optimization flags: {get_optimization_flags(build_type)}")
 
@@ -527,6 +539,7 @@ def build_firmware(library: str, scenario: str, build_type: str = 'Release') -> 
             ['cmake', '-B', str(build_dir),
              f'-DLIBRARY={library}',
              f'-DSCENARIO={scenario}',
+             f'-DBENCHMARK_MODE={benchmark_mode}',
              f'-DCMAKE_BUILD_TYPE={build_type}'],
             capture_output=True,
             text=True,
@@ -1036,6 +1049,7 @@ def init_database() -> None:
                     timestamp DATETIME NOT NULL,
                     library TEXT NOT NULL,
                     scenario TEXT NOT NULL,
+                    benchmark_mode TEXT,
                     text_bytes INTEGER NOT NULL,
                     data_bytes INTEGER NOT NULL,
                     bss_bytes INTEGER NOT NULL,
@@ -1056,6 +1070,18 @@ def init_database() -> None:
             except sqlite3.OperationalError:
                 # Column already exists
                 pass
+
+            # Add benchmark_mode column if it doesn't exist (for existing databases)
+            try:
+                cursor.execute('ALTER TABLE benchmark_results ADD COLUMN benchmark_mode TEXT')
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
+
+            # Backfill legacy rows created before benchmark_mode existed.
+            cursor.execute(
+                "UPDATE benchmark_results SET benchmark_mode = 'normal' WHERE benchmark_mode IS NULL"
+            )
 
             # Add n_bytes_in_buffer column if it doesn't exist (for existing databases)
             try:
@@ -1109,15 +1135,16 @@ def store_result(result: BenchmarkResult) -> None:
             # Insert the benchmark result
             cursor.execute('''
                 INSERT INTO benchmark_results (
-                    timestamp, library, scenario, text_bytes, data_bytes, bss_bytes,
+                    timestamp, library, scenario, benchmark_mode, text_bytes, data_bytes, bss_bytes,
                     cpu_cycles, n_bytes_in_buffer,
                     library_commit_hash, library_branch, library_tag, library_modified,
                     build_type, optimization_flags
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 result.timestamp,
                 result.library,
                 result.scenario,
+                result.benchmark_mode,
                 result.text_bytes,
                 result.data_bytes,
                 result.bss_bytes,
@@ -1138,13 +1165,18 @@ def store_result(result: BenchmarkResult) -> None:
         print(f"Warning: Failed to store benchmark result in database: {str(e)}")
         # Continue execution even if database fails
 
-def get_latest_results(library: Optional[str] = None, scenario: Optional[str] = None) -> List[BenchmarkResult]:
+def get_latest_results(
+    library: Optional[str] = None,
+    scenario: Optional[str] = None,
+    benchmark_mode: Optional[str] = None
+) -> List[BenchmarkResult]:
     """
     Query recent benchmark results with optional filtering.
 
     Args:
         library: Optional library filter
         scenario: Optional scenario filter
+        benchmark_mode: Optional benchmark mode filter
 
     Returns:
         List of BenchmarkResult objects matching the criteria
@@ -1159,8 +1191,28 @@ def get_latest_results(library: Optional[str] = None, scenario: Optional[str] = 
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
 
-            # Build query based on filters
-            query = 'SELECT * FROM benchmark_results'
+            # Build query based on filters.
+            # Use explicit column ordering to remain compatible with migrated
+            # databases where column insertion order can differ.
+            query = '''
+                SELECT
+                    timestamp,
+                    library,
+                    scenario,
+                    COALESCE(benchmark_mode, 'normal') AS benchmark_mode,
+                    text_bytes,
+                    data_bytes,
+                    bss_bytes,
+                    cpu_cycles,
+                    n_bytes_in_buffer,
+                    library_commit_hash,
+                    library_branch,
+                    library_tag,
+                    library_modified,
+                    build_type,
+                    optimization_flags
+                FROM benchmark_results
+            '''
             conditions = []
             params = []
 
@@ -1170,6 +1222,9 @@ def get_latest_results(library: Optional[str] = None, scenario: Optional[str] = 
             if scenario:
                 conditions.append('scenario = ?')
                 params.append(scenario)
+            if benchmark_mode:
+                conditions.append('benchmark_mode = ?')
+                params.append(benchmark_mode)
 
             if conditions:
                 query += ' WHERE ' + ' AND '.join(conditions)
@@ -1181,8 +1236,10 @@ def get_latest_results(library: Optional[str] = None, scenario: Optional[str] = 
             # Fetch all results and convert to BenchmarkResult objects
             for row in cursor.fetchall():
                 result = BenchmarkResult(
-                    library=row[2],
-                    scenario=row[3],
+                    timestamp=row[0],
+                    library=row[1],
+                    scenario=row[2],
+                    benchmark_mode=row[3],
                     text_bytes=row[4],
                     data_bytes=row[5],
                     bss_bytes=row[6],
@@ -1192,9 +1249,8 @@ def get_latest_results(library: Optional[str] = None, scenario: Optional[str] = 
                     library_branch=row[10],
                     library_tag=row[11],
                     library_modified=bool(row[12]),
-                    timestamp=row[1],
-                    build_type=row[13] if len(row) > 13 else 'Release',
-                    optimization_flags=row[14] if len(row) > 14 else get_optimization_flags('Release')
+                    build_type=row[13] if row[13] else 'Release',
+                    optimization_flags=row[14] if row[14] else get_optimization_flags('Release')
                 )
                 results.append(result)
 
@@ -1209,7 +1265,8 @@ def create_benchmark_result(
     static_sizes: StaticSizes,
     dynamic_metrics: DynamicMetrics,
     git_info: Optional[GitInfo],
-    build_type: str = 'Release'
+    build_type: str = 'Release',
+    benchmark_mode: str = 'normal'
 ) -> BenchmarkResult:
     """
     Create a BenchmarkResult object from collected metrics.
@@ -1221,6 +1278,7 @@ def create_benchmark_result(
         dynamic_metrics: Dynamic metrics (may contain None values)
         git_info: Git information (may be None for Baseline)
         build_type: CMake build type ('Release' or 'Debug'), defaults to 'Release'
+        benchmark_mode: Benchmark mode ('normal' or 'partial'), defaults to 'normal'
 
     Returns:
         BenchmarkResult object ready for database storage
@@ -1243,6 +1301,7 @@ def create_benchmark_result(
     return BenchmarkResult(
         library=library,
         scenario=scenario,
+        benchmark_mode=benchmark_mode,
         text_bytes=static_sizes.text_bytes,
         data_bytes=static_sizes.data_bytes,
         bss_bytes=static_sizes.bss_bytes,
@@ -1288,6 +1347,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
         row = [
             result.library,
             result.scenario,
+            result.benchmark_mode,
             f"{result.text_bytes:,}",
             f"{result.data_bytes:,}",
             f"{result.bss_bytes:,}",
@@ -1307,6 +1367,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
     headers = [
         "Library",
         "Scenario",
+        "Mode",
         "text (bytes)",
         "data (bytes)",
         "bss (bytes)",
@@ -1322,7 +1383,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
         # Add summary row if multiple results
         if len(results) > 1:
             summary_data = [
-                ["TOTAL/AVG", "", f"{total_text:,}", f"{total_data:,}", f"{total_bss:,}"]
+                ["TOTAL/AVG", "", "", f"{total_text:,}", f"{total_data:,}", f"{total_bss:,}"]
             ]
             if total_cpu_cycles > 0:
                 summary_data[0].append(f"{total_cpu_cycles:,}")
@@ -1357,7 +1418,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
             print(separator_line)
 
             # Build summary row
-            summary_row = ["TOTAL/AVG", ""]
+            summary_row = ["TOTAL/AVG", "", ""]
             summary_row.extend([f"{total_text:,}", f"{total_data:,}", f"{total_bss:,}"])
 
             if total_cpu_cycles > 0:
@@ -1564,6 +1625,13 @@ def main() -> None:
         help="Enable verbose output with detailed tool information"
     )
 
+    parser.add_argument(
+        '--mode',
+        choices=['normal', 'partial'],
+        default='normal',
+        help="Benchmark mode for serialization path selection (default: normal)"
+    )
+
     # Build type arguments (mutually exclusive, default: release)
     build_type_group = parser.add_mutually_exclusive_group()
     build_type_group.add_argument(
@@ -1583,6 +1651,7 @@ def main() -> None:
 
     # Determine build type from arguments
     build_type = 'Debug' if args.debug else 'Release'
+    benchmark_mode = args.mode
 
     # Handle --list-combinations flag
     if args.list_combinations:
@@ -1613,7 +1682,10 @@ def main() -> None:
                 f"Available scenarios: {', '.join(available_scenarios) if available_scenarios else 'None'}"
             )
 
-        print(f"Running benchmark for library '{args.library}' with scenario '{args.scenario}'")
+        print(
+            f"Running benchmark for library '{args.library}' with scenario "
+            f"'{args.scenario}' (mode={benchmark_mode})"
+        )
         if args.flash:
             print("Device flashing enabled")
 
@@ -1632,7 +1704,7 @@ def main() -> None:
             print(f"Warning: Could not extract git information: {str(e)}")
 
         try:
-            elf_path = build_firmware(args.library, args.scenario, build_type)
+            elf_path = build_firmware(args.library, args.scenario, build_type, benchmark_mode)
             print(f"Build completed successfully. ELF file: {elf_path}")
 
             # Extract static sizes (SCT-004 implementation)
@@ -1674,7 +1746,8 @@ def main() -> None:
                     static_sizes=static_sizes,
                     dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
                     git_info=git_info,
-                    build_type=build_type
+                    build_type=build_type,
+                    benchmark_mode=benchmark_mode
                 )
 
                 # Store in database
@@ -1696,7 +1769,10 @@ def main() -> None:
 
         library_scenarios = scenarios[args.library]
         total_scenarios = len(library_scenarios)
-        print(f"Running all scenarios for library '{args.library}': {', '.join(library_scenarios)}")
+        print(
+            f"Running all scenarios for library '{args.library}' "
+            f"(mode={benchmark_mode}): {', '.join(library_scenarios)}"
+        )
         if args.flash:
             print("Device flashing enabled")
 
@@ -1707,7 +1783,7 @@ def main() -> None:
         for i, scenario in enumerate(library_scenarios, 1):
             print(f"\n[{i}/{total_scenarios}] Building {args.library}/{scenario}...")
             try:
-                elf_path = build_firmware(args.library, scenario, build_type)
+                elf_path = build_firmware(args.library, scenario, build_type, benchmark_mode)
                 print(f"Build completed successfully. ELF file: {elf_path}")
 
                 # Extract static sizes (SCT-004 implementation)
@@ -1753,7 +1829,8 @@ def main() -> None:
                         static_sizes=static_sizes,
                         dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
                         git_info=git_info,
-                        build_type=build_type
+                        build_type=build_type,
+                        benchmark_mode=benchmark_mode
                     )
 
                     # Store in database
@@ -1785,7 +1862,10 @@ def main() -> None:
             )
 
         total_libraries = len(libraries_with_scenario)
-        print(f"Running scenario '{args.scenario}' for libraries: {', '.join(libraries_with_scenario)}")
+        print(
+            f"Running scenario '{args.scenario}' for libraries "
+            f"(mode={benchmark_mode}): {', '.join(libraries_with_scenario)}"
+        )
         if args.flash:
             print("Device flashing enabled")
 
@@ -1796,7 +1876,7 @@ def main() -> None:
         for i, lib in enumerate(libraries_with_scenario, 1):
             print(f"\n[{i}/{total_libraries}] Building {lib}/{args.scenario}...")
             try:
-                elf_path = build_firmware(lib, args.scenario, build_type)
+                elf_path = build_firmware(lib, args.scenario, build_type, benchmark_mode)
                 print(f"Build completed successfully. ELF file: {elf_path}")
 
                 # Extract static sizes (SCT-004 implementation)
@@ -1842,7 +1922,8 @@ def main() -> None:
                         static_sizes=static_sizes,
                         dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
                         git_info=git_info,
-                        build_type=build_type
+                        build_type=build_type,
+                        benchmark_mode=benchmark_mode
                     )
 
                     # Store in database
@@ -1862,7 +1943,7 @@ def main() -> None:
         if not combinations:
             print_error("No valid library/scenario combinations found. Check Scenarios directory.")
 
-        print(f"Running all {len(combinations)} library/scenario combinations:")
+        print(f"Running all {len(combinations)} library/scenario combinations (mode={benchmark_mode}):")
         for lib, scenario in combinations:
             print(f"  - {lib}/{scenario}")
         if args.flash:
@@ -1881,7 +1962,7 @@ def main() -> None:
         for i, (lib, scenario) in enumerate(combinations, 1):
             print(f"\n[{i}/{len(combinations)}] Building {lib}/{scenario}...")
             try:
-                elf_path = build_firmware(lib, scenario, build_type)
+                elf_path = build_firmware(lib, scenario, build_type, benchmark_mode)
                 print(f"Build completed successfully. ELF file: {elf_path}")
 
                 # Extract static sizes (SCT-004 implementation)
@@ -1927,7 +2008,8 @@ def main() -> None:
                         static_sizes=static_sizes,
                         dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
                         git_info=git_info,
-                        build_type=build_type
+                        build_type=build_type,
+                        benchmark_mode=benchmark_mode
                     )
 
                     # Store in database

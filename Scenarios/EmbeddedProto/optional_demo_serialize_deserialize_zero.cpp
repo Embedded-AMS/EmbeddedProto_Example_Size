@@ -33,6 +33,7 @@
 #include <WriteBufferFixedSize.h>
 #include <ReadBufferFixedSize.h>
 
+#include <EmbeddedProto/helper_serialize_mode.h>
 // Volatile variable to prevent compiler from optimizing away serialization
 // The compiler must preserve the buffer write since this checksum depends on it
 extern "C" volatile uint8_t g_buffer_checksum;
@@ -45,7 +46,7 @@ uint32_t run_scenario()
 
   // Serialize the data to buffer
   EmbeddedProto::WriteBufferFixedSize<100> write_buffer;
-  const auto serialize_result = msg.serialize(write_buffer);
+  const auto serialize_result = HelperSerializeMode::serialize_message(msg, write_buffer);
 
   // Copy buffer to deserialization buffer
   EmbeddedProto::ReadBufferFixedSize<100> read_buffer;

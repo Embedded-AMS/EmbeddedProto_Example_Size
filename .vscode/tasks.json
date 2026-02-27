@@ -1,5 +1,17 @@
 {
     "version": "2.0.0",
+    "inputs": [
+        {
+            "id": "benchmarkMode",
+            "type": "pickString",
+            "description": "Select serialization benchmark mode",
+            "options": [
+                "normal",
+                "partial"
+            ],
+            "default": "normal"
+        }
+    ],
     "tasks": [
         {
             "label": "Build Current Scenario",
@@ -7,7 +19,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "LIBRARY=$(basename \"${relativeFileDirname}\") && SCENARIO=\"${fileBasenameNoExtension}\" && echo \"Building: LIBRARY=$LIBRARY SCENARIO=$SCENARIO\" && rm -rf build/* && cmake -B build -DLIBRARY=$LIBRARY -DSCENARIO=$SCENARIO -DCMAKE_BUILD_TYPE=Debug && cmake --build build"
+                "FILE=\"${relativeFile}\" && if [[ \"$FILE\" =~ ^Scenarios/([^/]+)/([^/]+)\\.(cpp|c)$ ]]; then LIBRARY=\"${BASH_REMATCH[1]}\"; SCENARIO=\"${BASH_REMATCH[2]}\"; else echo \"ERROR: Active file must be a scenario source in Scenarios/<Library>/<Scenario>.cpp\"; echo \"Current file: $FILE\"; exit 1; fi && MODE=\"${input:benchmarkMode}\" && BUILD_DIR=\"build/${LIBRARY}/${MODE}/${SCENARIO}\" && echo \"Building: LIBRARY=$LIBRARY SCENARIO=$SCENARIO MODE=$MODE\" && cmake -B \"$BUILD_DIR\" -DLIBRARY=$LIBRARY -DSCENARIO=$SCENARIO -DBENCHMARK_MODE=$MODE -DCMAKE_BUILD_TYPE=Debug && cmake --build \"$BUILD_DIR\" && mkdir -p build/bin && cp \"$BUILD_DIR/bin/nucleo_f446re_app.elf\" build/bin/nucleo_f446re_app.elf"
             ],
             "group": {
                 "kind": "build",

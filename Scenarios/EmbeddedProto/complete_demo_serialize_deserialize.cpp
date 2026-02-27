@@ -33,6 +33,7 @@
 #include <WriteBufferFixedSize.h>
 #include <ReadBufferFixedSize.h>
 
+#include <EmbeddedProto/helper_serialize_mode.h>
 uint32_t run_scenario()
 {
     // Use sufficiently large buffers to handle the serialized data
@@ -45,7 +46,7 @@ uint32_t run_scenario()
     HelperCompleteDemo::set_envelop_to_mcu_configurations_demo(envelop_to_mcu);
 
     // Step 2: Serialize EnvelopToMCU to a buffer
-    const auto serialize_config_result = envelop_to_mcu.serialize(write_buffer);
+    const auto serialize_config_result = HelperSerializeMode::serialize_message(envelop_to_mcu, write_buffer);
     if (serialize_config_result != EmbeddedProto::Error::NO_ERRORS)
     {
         return 0; // Serialization failed
@@ -56,6 +57,7 @@ uint32_t run_scenario()
 
     // Step 4: Deserialize the buffer to EnvelopToMCU
     const uint32_t buffer_size = write_buffer.get_size();
+    read_buffer.clear();
     memcpy(read_buffer.get_data(), write_buffer.get_data(), buffer_size);
     read_buffer.set_bytes_written(buffer_size);
 
@@ -71,7 +73,7 @@ uint32_t run_scenario()
 
     // Step 6: Serialize EnvelopToMCU to the buffer
     write_buffer.clear();
-    const auto serialize_command_result = envelop_to_mcu_deserialized.serialize(write_buffer);
+    const auto serialize_command_result = HelperSerializeMode::serialize_message(envelop_to_mcu_deserialized, write_buffer);
     if (serialize_command_result != EmbeddedProto::Error::NO_ERRORS)
     {
         return 0; // Serialization failed
@@ -82,6 +84,7 @@ uint32_t run_scenario()
 
     // Step 8: Deserialize the buffer into EnvelopToMCU
     const uint32_t command_buffer_size = write_buffer.get_size();
+    read_buffer.clear();
     memcpy(read_buffer.get_data(), write_buffer.get_data(), command_buffer_size);
     read_buffer.set_bytes_written(command_buffer_size);
 
@@ -129,7 +132,7 @@ uint32_t run_scenario()
 
     // Serialize the states to a buffer
     write_buffer.clear();
-    const auto serialize_states_result = envelop_from_mcu_states.serialize(write_buffer);
+    const auto serialize_states_result = HelperSerializeMode::serialize_message(envelop_from_mcu_states, write_buffer);
     if (serialize_states_result != EmbeddedProto::Error::NO_ERRORS)
     {
         return 0; // Serialization failed
@@ -154,7 +157,7 @@ uint32_t run_scenario()
 
     // Step 11: Serialize the measurement data
     write_buffer.clear();
-    const auto serialize_measurement_result = envelop_from_mcu_measurement.serialize(write_buffer);
+    const auto serialize_measurement_result = HelperSerializeMode::serialize_message(envelop_from_mcu_measurement, write_buffer);
     if (serialize_measurement_result != EmbeddedProto::Error::NO_ERRORS)
     {
         return 0; // Serialization failed
@@ -169,6 +172,7 @@ uint32_t run_scenario()
 
     // Test states deserialization
     const uint32_t states_size = write_buffer.get_size();
+    read_buffer.clear();
     memcpy(read_buffer.get_data(), write_buffer.get_data(), states_size);
     read_buffer.set_bytes_written(states_size);
 

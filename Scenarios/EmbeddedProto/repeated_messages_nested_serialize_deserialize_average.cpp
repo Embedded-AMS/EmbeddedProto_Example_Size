@@ -33,6 +33,7 @@
 #include <WriteBufferFixedSize.h>
 #include <ReadBufferFixedSize.h>
 
+#include <EmbeddedProto/helper_serialize_mode.h>
 uint32_t run_scenario()
 {
   // Create message with nested repeated messages (10 outer, 5 inner each)
@@ -41,7 +42,7 @@ uint32_t run_scenario()
 
   // Serialize the data to buffer
   EmbeddedProto::WriteBufferFixedSize<10000> write_buffer;
-  const auto serialize_result = msg.serialize(write_buffer);
+  const auto serialize_result = HelperSerializeMode::serialize_message(msg, write_buffer);
 
   // Copy buffer to deserialization buffer
   EmbeddedProto::ReadBufferFixedSize<10000> read_buffer;

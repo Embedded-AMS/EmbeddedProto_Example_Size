@@ -51,8 +51,8 @@ endif()
 # Optimization flags for cross-compilation (not provided by CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_C_FLAGS_RELEASE "-Os -DNDEBUG -ffunction-sections -fdata-sections" CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS_RELEASE "-Os -DNDEBUG -ffunction-sections -fdata-sections" CACHE STRING "" FORCE)
-set(CMAKE_C_FLAGS_DEBUG "-Og -g -DDEBUG" CACHE STRING "" FORCE)
-set(CMAKE_CXX_FLAGS_DEBUG "-Og -g -DDEBUG" CACHE STRING "" FORCE)
+set(CMAKE_C_FLAGS_DEBUG "-O0 -g3 -DDEBUG -fno-omit-frame-pointer" CACHE STRING "" FORCE)
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g3 -DDEBUG -fno-omit-frame-pointer -fno-inline" CACHE STRING "" FORCE)
 
 # Use C++17 standard
 set(CMAKE_CXX_STANDARD 17)
@@ -68,11 +68,17 @@ set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} ${CPU_FLAGS}")
 # Command line parameters for scenario selection
 set(LIBRARY "" CACHE STRING "Library subfolder to select scenario from (ArduinoJson, EmbeddedProto, NanoPB)")
 set(SCENARIO "" CACHE STRING "Specific scenario file to build (without extension)")
+set(BENCHMARK_MODE "normal" CACHE STRING "Benchmark mode: normal or partial")
 
 # Validate parameters
 if(NOT LIBRARY OR NOT SCENARIO)
     message(WARNING "LIBRARY and SCENARIO parameters must be specified for scenario selection")
     message(WARNING "Usage: cmake -DLIBRARY=<library> -DSCENARIO=<scenario> ..")
+endif()
+
+# Validate benchmark mode
+if(NOT BENCHMARK_MODE STREQUAL "normal" AND NOT BENCHMARK_MODE STREQUAL "partial")
+    message(FATAL_ERROR "Invalid BENCHMARK_MODE: ${BENCHMARK_MODE}. Valid options are: normal, partial")
 endif()
 
 # Add subdirectories

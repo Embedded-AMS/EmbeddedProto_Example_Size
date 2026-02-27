@@ -58,21 +58,19 @@ if(LIBRARY STREQUAL "EmbeddedProto")
         get_filename_component(PROTO_NAME ${PROTO_FILE} NAME_WE)
         set(OUTPUT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/${PROTO_NAME}.h")
         
-        if(NOT EXISTS "${OUTPUT_FILE}" OR "${PROTO_FILE}" IS_NEWER_THAN "${OUTPUT_FILE}")
-            message(STATUS "Generating EmbeddedProto code for ${PROTO_NAME}")
-            execute_process(
-                COMMAND ${PROTOC}
-                    --plugin=protoc-gen-eams=${PROTOC_GEN_EAMS}
-                    --eams_out=${CMAKE_CURRENT_SOURCE_DIR}
-                    --proto_path=${CMAKE_SOURCE_DIR}/Protofiles
-                    ${PROTO_FILE}
-                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/Protofiles
-                RESULT_VARIABLE PROTOC_RESULT
-                ERROR_VARIABLE PROTOC_ERROR
-            )
-            if(NOT PROTOC_RESULT EQUAL 0)
-                message(FATAL_ERROR "EmbeddedProto code generation failed: ${PROTOC_ERROR}")
-            endif()
+        message(STATUS "Generating EmbeddedProto code for ${PROTO_NAME}")
+        execute_process(
+            COMMAND ${PROTOC}
+                --plugin=protoc-gen-eams=${PROTOC_GEN_EAMS}
+                --eams_out=${CMAKE_CURRENT_SOURCE_DIR}
+                --proto_path=${CMAKE_SOURCE_DIR}/Protofiles
+                ${PROTO_FILE}
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/Protofiles
+            RESULT_VARIABLE PROTOC_RESULT
+            ERROR_VARIABLE PROTOC_ERROR
+        )
+        if(NOT PROTOC_RESULT EQUAL 0)
+            message(FATAL_ERROR "EmbeddedProto code generation failed: ${PROTOC_ERROR}")
         endif()
 
         list(APPEND GENERATED_HEADERS "${OUTPUT_FILE}")
