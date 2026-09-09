@@ -14,7 +14,7 @@ namespace HelperSerializeMode
 template<typename TMessage, typename TBuffer>
 EmbeddedProto::Error serialize_message(const TMessage& message, TBuffer& buffer)
 {
-#if (EP_SERIALIZATION_MODE_PARTIAL == EP_SERIALIZATION_MODE)
+#ifdef PARTIAL_SERIALIZATION_ENABLED
   EmbeddedProto::MessageStateStack<16U> state_stack;
   return message.serialize_partial(buffer, state_stack.root());
 #else

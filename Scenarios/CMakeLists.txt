@@ -82,16 +82,12 @@ target_include_directories(scenario_lib PUBLIC
 
 # Configure benchmark mode compile definitions for EmbeddedProto runtime.
 # Map benchmark mode to EP_SERIALIZATION_MODE build flag:
-#   normal  -> EP_SERIALIZATION_MODE_FULL
-#   partial -> EP_SERIALIZATION_MODE_PARTIAL
+#   normal  -> (nothing defined)
+#   partial -> PARTIAL_SERIALIZATION_ENABLED
 if(LIBRARY STREQUAL "EmbeddedProto")
     if(BENCHMARK_MODE STREQUAL "partial")
         target_compile_definitions(scenario_lib PRIVATE
-            EP_SERIALIZATION_MODE=EP_SERIALIZATION_MODE_PARTIAL
-        )
-    else()
-        target_compile_definitions(scenario_lib PRIVATE
-            EP_SERIALIZATION_MODE=EP_SERIALIZATION_MODE_FULL
+            PARTIAL_SERIALIZATION_ENABLED
         )
     endif()
 endif()
