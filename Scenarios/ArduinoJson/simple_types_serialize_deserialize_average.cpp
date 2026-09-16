@@ -30,6 +30,8 @@
 
 #include <ArduinoJson.h>
 #include <ArduinoJson/helper_simple_types.h>
+#include <scenario.h>
+#include <ArduinoJson/counting_allocator.h>
 
 // Volatile variable to prevent compiler from optimizing away serialization
 // The compiler must preserve the buffer write since this checksum depends on it
@@ -38,20 +40,21 @@ volatile uint8_t g_buffer_checksum = 0;
 
 uint32_t run_scenario()
 {
-  JsonDocument doc;
+  JsonDocument doc(&g_json_allocator);
 
   HelperSimpleTypesArduinoJson::set_average(doc);
 
   // Create buffer for serialized data
   char buffer[500];
+  report_message_size(sizeof(doc) + g_json_allocator.peak_bytes());
   const auto n_bytes_written = serializeJson(doc, buffer, sizeof(buffer));
 
   // Create deserialization buffer and copy data
-  char deserialize_buffer[100];
+  char deserialize_buffer[500];
   memcpy(deserialize_buffer, buffer, n_bytes_written);
 
   // Clear the document data
-  JsonDocument doc_deserialized;
+  JsonDocument doc_deserialized(&g_json_allocator);
 
   // Deserialize the buffer into the document
   const auto deserialize_error = deserializeJson(doc_deserialized, deserialize_buffer, n_bytes_written);
