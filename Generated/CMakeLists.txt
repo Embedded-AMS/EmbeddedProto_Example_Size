@@ -189,6 +189,64 @@ elseif(LIBRARY STREQUAL "NanoPB")
         target_sources(generated_code PRIVATE ${NANOPB_RUNTIME_SOURCES})
     endif()
     
+elseif(LIBRARY STREQUAL "FlatBuffers")
+    # FlatBuffers through flatcc, the C implementation, which is the one that fits a
+    # microcontroller. The flatcc compiler is built once for the host from the submodule.
+    set(FLATCC_DIR "${CMAKE_SOURCE_DIR}/External/flatcc")
+    set(FLATCC_HOST_BUILD "${CMAKE_SOURCE_DIR}/build/flatcc-host")
+    set(FLATCC_BIN "${FLATCC_DIR}/bin/flatcc")
+
+    if(NOT EXISTS "${FLATCC_BIN}")
+        message(STATUS "Building the flatcc compiler for the host")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} -S ${FLATCC_DIR} -B ${FLATCC_HOST_BUILD}
+                -DFLATCC_TEST=OFF -DFLATCC_CXX_TEST=OFF -DFLATCC_INSTALL=OFF
+                -DFLATCC_REFLECTION=OFF -DCMAKE_BUILD_TYPE=Release
+            RESULT_VARIABLE FLATCC_CONFIG_RESULT
+            OUTPUT_QUIET
+        )
+        if(NOT FLATCC_CONFIG_RESULT EQUAL 0)
+            message(FATAL_ERROR "Configuring the flatcc host build failed")
+        endif()
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} --build ${FLATCC_HOST_BUILD} --parallel
+            RESULT_VARIABLE FLATCC_BUILD_RESULT
+            OUTPUT_QUIET
+        )
+        if(NOT FLATCC_BUILD_RESULT EQUAL 0 OR NOT EXISTS "${FLATCC_BIN}")
+            message(FATAL_ERROR "Building the flatcc compiler failed")
+        endif()
+    endif()
+
+    # Generate reader, builder and verifier headers for every schema at configure time.
+    file(GLOB FBS_FILES "${CMAKE_SOURCE_DIR}/Protofiles/*.fbs")
+    foreach(FBS_FILE ${FBS_FILES})
+        get_filename_component(FBS_NAME ${FBS_FILE} NAME_WE)
+        message(STATUS "Generating FlatBuffers code for ${FBS_NAME}")
+        execute_process(
+            COMMAND ${FLATCC_BIN} -a -I ${CMAKE_SOURCE_DIR}/Protofiles -o ${CMAKE_CURRENT_SOURCE_DIR} ${FBS_FILE}
+            RESULT_VARIABLE FLATCC_RESULT
+            ERROR_VARIABLE FLATCC_ERROR
+        )
+        if(NOT FLATCC_RESULT EQUAL 0)
+            message(FATAL_ERROR "FlatBuffers code generation failed: ${FLATCC_ERROR}")
+        endif()
+    endforeach()
+
+    # The runtime the scenarios need: builder and emitter to write, verifier to check a
+    # received buffer. JSON support is left out. Allocation goes through the counting
+    # allocator so the RAM a build takes can be reported.
+    add_library(generated_code STATIC
+        "${FLATCC_DIR}/src/runtime/builder.c"
+        "${FLATCC_DIR}/src/runtime/emitter.c"
+        "${FLATCC_DIR}/src/runtime/refmap.c"
+        "${FLATCC_DIR}/src/runtime/verifier.c"
+        "${CMAKE_SOURCE_DIR}/Scenarios/FlatBuffers/counting_alloc.c"
+    )
+    target_include_directories(generated_code PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_include_directories(generated_code PUBLIC ${FLATCC_DIR}/include)
+    target_compile_options(generated_code PUBLIC -include ${CMAKE_SOURCE_DIR}/Scenarios/FlatBuffers/counting_alloc.h)
+
 else()
     # For ArduinoJson and Baseline, no code generation is needed
     message(STATUS "No code generation required for ${LIBRARY}")

@@ -28,6 +28,7 @@ next to them in `Protofiles/`:
   `PB_NO_ERRMSG`, the one size option its documentation recommends for a small target
 - `<name>.options.json` for Embedded Proto (`maxLength`, `callbackStorage`), passed to the
   generator as `--eams_opt=options_file=...`
+- `<name>.fbs` for FlatBuffers, a hand written schema equivalent to the `.proto`
 
 # Building the code
 1. Clean previous build results: `rm -rf build/`
