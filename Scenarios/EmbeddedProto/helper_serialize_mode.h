@@ -5,8 +5,8 @@
 #ifndef HELPER_SERIALIZE_MODE
 #define HELPER_SERIALIZE_MODE
 
-#include <Defines.h>
-#include <MessageState.h>
+#include <EmbeddedProto/Defines.h>
+#include <EmbeddedProto/MessageState.h>
 
 namespace HelperSerializeMode
 {

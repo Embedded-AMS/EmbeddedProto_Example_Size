@@ -30,7 +30,7 @@
 
 #include <simple_types.h>
 #include <EmbeddedProto/helper_simple_types.h>
-#include <WriteBufferFixedSize.h>
+#include <EmbeddedProto/WriteBufferFixedSize.h>
 
 #include <EmbeddedProto/helper_serialize_mode.h>
 // Volatile variable to prevent compiler from optimizing away serialization

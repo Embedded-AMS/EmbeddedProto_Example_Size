@@ -92,17 +92,10 @@ if(LIBRARY STREQUAL "EmbeddedProto")
     endif()
 endif()
 
-# For EmbeddedProto scenarios, add the EmbeddedProto source directory and source files
+# For EmbeddedProto scenarios, add the header-only EmbeddedProto source directory
 if(LIBRARY STREQUAL "EmbeddedProto")
     target_include_directories(scenario_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../External/EmbeddedProto/src)
 
-    # Add EmbeddedProto source files to the scenario library
-    set(EMBEDDEDPROTO_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/../External/EmbeddedProto/src/MessageInterface.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/../External/EmbeddedProto/src/Fields.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/../External/EmbeddedProto/src/ReadBufferSection.cpp
-    )
-    target_sources(scenario_lib PRIVATE ${EMBEDDEDPROTO_SOURCES})
 elseif(LIBRARY STREQUAL "ArduinoJson")
     # For ArduinoJson scenarios, add the ArduinoJson include directory
     target_include_directories(scenario_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../External/ArduinoJson/src)

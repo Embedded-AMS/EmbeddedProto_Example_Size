@@ -31,8 +31,8 @@
 #include <string_demo.h>
 #include <cstring>
 #include <EmbeddedProto/helper_string.h>
-#include <WriteBufferFixedSize.h>
-#include <ReadBufferFixedSize.h>
+#include <EmbeddedProto/WriteBufferFixedSize.h>
+#include <EmbeddedProto/ReadBufferFixedSize.h>
 
 #include <EmbeddedProto/helper_serialize_mode.h>
 uint32_t run_scenario()
