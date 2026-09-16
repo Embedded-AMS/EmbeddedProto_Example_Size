@@ -95,7 +95,13 @@ def parse_cmake_optimization_flags(cmake_path: str = 'CMakeLists.txt') -> Dict[s
 
     matches = re.findall(pattern, content)
 
+    # Expand ${VAR} references to plain set(VAR "value") definitions in the same file,
+    # so the stored flags show what the compiler actually received.
+    variables = dict(re.findall(r'set\s*\(\s*(\w+)\s+"([^"$]*)"\s*\)', content))
+
     for build_type, flag_string in matches:
+        for name, value in variables.items():
+            flag_string = flag_string.replace('${' + name + '}', value)
         # Capitalize first letter, lowercase rest (e.g., RELEASE -> Release)
         build_type_normalized = build_type.capitalize()
         flags[build_type_normalized] = flag_string

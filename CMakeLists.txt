@@ -48,11 +48,16 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# C++ flags every embedded toolchain project (STM32CubeIDE, MCUXpresso, PlatformIO) enables by
+# default. Without them GCC links the exception unwinder, RTTI and malloc into every C++ build,
+# which nanopb (plain C) never pays for and which would skew the comparison by several kilobytes.
+set(CXX_EMBEDDED_FLAGS "-fno-exceptions -fno-rtti -fno-threadsafe-statics -fno-use-cxa-atexit")
+
 # Optimization flags for cross-compilation (not provided by CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_C_FLAGS_RELEASE "-Os -DNDEBUG -ffunction-sections -fdata-sections" CACHE STRING "" FORCE)
-set(CMAKE_CXX_FLAGS_RELEASE "-Os -DNDEBUG -ffunction-sections -fdata-sections" CACHE STRING "" FORCE)
+set(CMAKE_CXX_FLAGS_RELEASE "-Os -DNDEBUG -ffunction-sections -fdata-sections ${CXX_EMBEDDED_FLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_C_FLAGS_DEBUG "-O0 -g3 -DDEBUG -fno-omit-frame-pointer" CACHE STRING "" FORCE)
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g3 -DDEBUG -fno-omit-frame-pointer -fno-inline" CACHE STRING "" FORCE)
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g3 -DDEBUG -fno-omit-frame-pointer -fno-inline ${CXX_EMBEDDED_FLAGS}" CACHE STRING "" FORCE)
 
 # Use C++17 standard
 set(CMAKE_CXX_STANDARD 17)
