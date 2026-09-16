@@ -34,14 +34,16 @@
 
 // The same steps as the other libraries. A FlatBuffer can not be changed once built, so
 // step 5, adding the command to the received configuration, builds the envelope again.
+// One builder serves every buffer, reset between them keeps its memory, as flatcc advises.
 uint32_t run_scenario()
 {
     alignas(8) uint8_t buffer[2048];
     alignas(8) uint8_t deserialize_buffer[2048];
     flatcc_builder_t builder;
 
-    // Step 1: Set configuration data in EnvelopToMCU (5 configurations)
     flatcc_builder_init(&builder);
+
+    // Step 1: Set configuration data in EnvelopToMCU (5 configurations)
     EnvelopToMCU_start_as_root(&builder);
     HelperCompleteDemoFlatBuffers::add_configurations(&builder);
     EnvelopToMCU_end_as_root(&builder);
@@ -66,7 +68,7 @@ uint32_t run_scenario()
     }
 
     // Step 5 and 6: Add the command to the configuration and serialize it again
-    flatcc_builder_init(&builder);
+    flatcc_builder_reset(&builder);
     EnvelopToMCU_start_as_root(&builder);
     HelperCompleteDemoFlatBuffers::add_configurations(&builder);
     HelperCompleteDemoFlatBuffers::add_motor_command(&builder);
@@ -90,7 +92,7 @@ uint32_t run_scenario()
     }
 
     // Step 9: Fill EnvelopFromMCU with the states and serialize it
-    flatcc_builder_init(&builder);
+    flatcc_builder_reset(&builder);
     EnvelopFromMCU_start_as_root(&builder);
     HelperCompleteDemoFlatBuffers::add_states(&builder);
     EnvelopFromMCU_end_as_root(&builder);
@@ -109,11 +111,12 @@ uint32_t run_scenario()
     }
 
     // Step 11: Fill EnvelopFromMCU with the measurement (25 data points and timestamps) and serialize it
-    flatcc_builder_init(&builder);
+    flatcc_builder_reset(&builder);
     EnvelopFromMCU_start_as_root(&builder);
     HelperCompleteDemoFlatBuffers::add_measurement(&builder);
     EnvelopFromMCU_end_as_root(&builder);
     const uint32_t measurement_size = HelperFlatBuffers::finish(builder, buffer, sizeof(buffer));
+    flatcc_builder_clear(&builder);
     if (measurement_size == 0)
     {
         return 0; // Serialization failed

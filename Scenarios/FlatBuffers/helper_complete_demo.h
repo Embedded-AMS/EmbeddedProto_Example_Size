@@ -152,20 +152,16 @@ inline bool compare_states(EnvelopFromMCU_table_t envelop)
 inline void add_measurement(flatcc_builder_t* B)
 {
   EnvelopFromMCU_data_Measurement_start(B);
-  Measurement_data_start(B);
+  // Fill arrays and hand them over in one call each, as the other libraries fill their array fields.
+  float data[MEASUREMENT_COUNT];
+  uint64_t time[MEASUREMENT_COUNT];
   for(uint32_t i = 0; i < MEASUREMENT_COUNT; ++i)
   {
-    float value = 1.23f * i;
-    Measurement_data_push(B, &value);
+    data[i] = 1.23f * i;
+    time[i] = 100 * i;
   }
-  Measurement_data_end(B);
-  Measurement_time_start(B);
-  for(uint32_t i = 0; i < MEASUREMENT_COUNT; ++i)
-  {
-    uint64_t value = 100 * i;
-    Measurement_time_push(B, &value);
-  }
-  Measurement_time_end(B);
+  Measurement_data_create(B, data, MEASUREMENT_COUNT);
+  Measurement_time_create(B, time, MEASUREMENT_COUNT);
   EnvelopFromMCU_data_Measurement_end(B);
 }
 

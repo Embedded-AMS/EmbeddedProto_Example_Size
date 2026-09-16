@@ -56,62 +56,28 @@ bool almost_equal(T a, T b, T epsilon) {
     return diff <= largest * epsilon;
 }
 
-inline void set_min(flatcc_builder_t* B)
-{
-  Simple_Types_a_int32_add(B, std::numeric_limits<int32_t>::min());
-  Simple_Types_a_int64_add(B, std::numeric_limits<int64_t>::min());
-  Simple_Types_a_uint32_add(B, std::numeric_limits<uint32_t>::min());
-  Simple_Types_a_uint64_add(B, std::numeric_limits<uint64_t>::min());
-  Simple_Types_a_sint32_add(B, std::numeric_limits<int32_t>::min());
-  Simple_Types_a_sint64_add(B, std::numeric_limits<int64_t>::min());
-  Simple_Types_a_bool_add(B, false);
-  Simple_Types_a_enum_add(B, Test_Enum_ZERO);
-  Simple_Types_a_fixed64_add(B, std::numeric_limits<uint64_t>::min());
-  Simple_Types_a_sfixed64_add(B, std::numeric_limits<int64_t>::min());
-  Simple_Types_a_double_add(B, std::numeric_limits<double>::lowest());
-  Simple_Types_a_fixed32_add(B, std::numeric_limits<uint32_t>::min());
-  Simple_Types_a_sfixed32_add(B, std::numeric_limits<int32_t>::min());
-  Simple_Types_a_float_add(B, std::numeric_limits<float>::lowest());
-  Simple_Types_a_nested_enum_add(B, Nested_Enum_NE_A);
-}
+// The fifteen field values in schema order, for the generated create() helpers which
+// write a whole table in one call. That is the idiomatic flatcc way when every field
+// is known up front, and cheaper than fifteen separate add() calls.
+#define SIMPLE_TYPES_MIN_ARGS \
+  std::numeric_limits<int32_t>::min(), std::numeric_limits<int64_t>::min(), std::numeric_limits<uint32_t>::min(), std::numeric_limits<uint64_t>::min(), \
+  std::numeric_limits<int32_t>::min(), std::numeric_limits<int64_t>::min(), false, Test_Enum_ZERO, \
+  std::numeric_limits<uint64_t>::min(), std::numeric_limits<int64_t>::min(), std::numeric_limits<double>::lowest(), std::numeric_limits<uint32_t>::min(), \
+  std::numeric_limits<int32_t>::min(), std::numeric_limits<float>::lowest(), Nested_Enum_NE_A
+#define SIMPLE_TYPES_MAX_ARGS \
+  std::numeric_limits<int32_t>::max(), std::numeric_limits<int64_t>::max(), std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint64_t>::max(), \
+  std::numeric_limits<int32_t>::max(), std::numeric_limits<int64_t>::max(), true, Test_Enum_TWOBILLION, \
+  std::numeric_limits<uint64_t>::max(), std::numeric_limits<int64_t>::max(), std::numeric_limits<double>::max(), std::numeric_limits<uint32_t>::max(), \
+  std::numeric_limits<int32_t>::max(), std::numeric_limits<float>::max(), Nested_Enum_NE_C
+#define SIMPLE_TYPES_AVERAGE_ARGS \
+  std::numeric_limits<int32_t>::max() / 2, std::numeric_limits<int64_t>::max() / 2, std::numeric_limits<uint32_t>::max() / 2, std::numeric_limits<uint64_t>::max() / 2, \
+  std::numeric_limits<int32_t>::max() / 2, std::numeric_limits<int64_t>::max() / 2, true, Test_Enum_ONEHUNDERTTWENTYSEVEN, \
+  std::numeric_limits<uint64_t>::max() / 2, std::numeric_limits<int64_t>::max() / 2, 1234.5678, std::numeric_limits<uint32_t>::max() / 2, \
+  std::numeric_limits<int32_t>::max() / 2, 123.4567f, Nested_Enum_NE_B
 
-inline void set_max(flatcc_builder_t* B)
-{
-  Simple_Types_a_int32_add(B, std::numeric_limits<int32_t>::max());
-  Simple_Types_a_int64_add(B, std::numeric_limits<int64_t>::max());
-  Simple_Types_a_uint32_add(B, std::numeric_limits<uint32_t>::max());
-  Simple_Types_a_uint64_add(B, std::numeric_limits<uint64_t>::max());
-  Simple_Types_a_sint32_add(B, std::numeric_limits<int32_t>::max());
-  Simple_Types_a_sint64_add(B, std::numeric_limits<int64_t>::max());
-  Simple_Types_a_bool_add(B, true);
-  Simple_Types_a_enum_add(B, Test_Enum_TWOBILLION);
-  Simple_Types_a_fixed64_add(B, std::numeric_limits<uint64_t>::max());
-  Simple_Types_a_sfixed64_add(B, std::numeric_limits<int64_t>::max());
-  Simple_Types_a_double_add(B, std::numeric_limits<double>::max());
-  Simple_Types_a_fixed32_add(B, std::numeric_limits<uint32_t>::max());
-  Simple_Types_a_sfixed32_add(B, std::numeric_limits<int32_t>::max());
-  Simple_Types_a_float_add(B, std::numeric_limits<float>::max());
-  Simple_Types_a_nested_enum_add(B, Nested_Enum_NE_C);
-}
-
-inline void set_average(flatcc_builder_t* B)
-{
-  Simple_Types_a_int32_add(B, std::numeric_limits<int32_t>::max() / 2);
-  Simple_Types_a_int64_add(B, std::numeric_limits<int64_t>::max() / 2);
-  Simple_Types_a_uint32_add(B, std::numeric_limits<uint32_t>::max() / 2);
-  Simple_Types_a_uint64_add(B, std::numeric_limits<uint64_t>::max() / 2);
-  Simple_Types_a_sint32_add(B, std::numeric_limits<int32_t>::max() / 2);
-  Simple_Types_a_sint64_add(B, std::numeric_limits<int64_t>::max() / 2);
-  Simple_Types_a_bool_add(B, true);
-  Simple_Types_a_enum_add(B, Test_Enum_ONEHUNDERTTWENTYSEVEN);
-  Simple_Types_a_fixed64_add(B, std::numeric_limits<uint64_t>::max() / 2);
-  Simple_Types_a_sfixed64_add(B, std::numeric_limits<int64_t>::max() / 2);
-  Simple_Types_a_double_add(B, 1234.5678);
-  Simple_Types_a_fixed32_add(B, std::numeric_limits<uint32_t>::max() / 2);
-  Simple_Types_a_sfixed32_add(B, std::numeric_limits<int32_t>::max() / 2);
-  Simple_Types_a_float_add(B, 123.4567f);
-  Simple_Types_a_nested_enum_add(B, Nested_Enum_NE_B);
-}
+inline void create_min_as_root(flatcc_builder_t* B) { Simple_Types_create_as_root(B, SIMPLE_TYPES_MIN_ARGS); }
+inline void create_max_as_root(flatcc_builder_t* B) { Simple_Types_create_as_root(B, SIMPLE_TYPES_MAX_ARGS); }
+inline void create_average_as_root(flatcc_builder_t* B) { Simple_Types_create_as_root(B, SIMPLE_TYPES_AVERAGE_ARGS); }
 
 inline bool compare_min(Simple_Types_table_t msg)
 {

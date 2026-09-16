@@ -36,13 +36,12 @@ uint32_t run_scenario()
 {
   flatcc_builder_t builder;
   flatcc_builder_init(&builder);
-  Simple_Types_start_as_root(&builder);
-  HelperSimpleTypesFlatBuffers::set_average(&builder);
-  Simple_Types_end_as_root(&builder);
+  HelperSimpleTypesFlatBuffers::create_average_as_root(&builder);
 
   // Copy the finished buffer into a byte array, like the other libraries serialize into one
   alignas(8) uint8_t buffer[256];
   const uint32_t buffer_size = HelperFlatBuffers::finish(builder, buffer, sizeof(buffer));
+  flatcc_builder_clear(&builder);
 
   // Copy buffer to deserialization buffer
   alignas(8) uint8_t deserialize_buffer[256];

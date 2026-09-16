@@ -41,15 +41,14 @@
 namespace HelperFlatBuffers
 {
 
-// Copy the finished buffer out of the builder's pages into the caller's array, report
-// the RAM the build took and release the builder. Returns the buffer size, or 0 when
-// the array is too small.
+// Copy the finished buffer out of the builder's pages into the caller's array and report
+// the RAM the build took. Returns the buffer size, or 0 when the array is too small. The
+// scenario resets or clears the builder afterwards.
 inline uint32_t finish(flatcc_builder_t& builder, uint8_t* buffer, const uint32_t capacity)
 {
   const size_t size = flatcc_builder_get_buffer_size(&builder);
   report_message_size(static_cast<uint32_t>(sizeof(builder)) + flatcc_counting_peak_bytes());
   void* copied = (size <= capacity) ? flatcc_builder_copy_buffer(&builder, buffer, capacity) : nullptr;
-  flatcc_builder_clear(&builder);
   return (nullptr != copied) ? static_cast<uint32_t>(size) : 0;
 }
 

@@ -42,6 +42,7 @@ uint32_t run_scenario()
 
   alignas(8) uint8_t buffer[12000];
   const uint32_t buffer_size = HelperFlatBuffers::finish(builder, buffer, sizeof(buffer));
+  flatcc_builder_clear(&builder);
 
   alignas(8) uint8_t deserialize_buffer[12000];
   memcpy(deserialize_buffer, buffer, buffer_size);

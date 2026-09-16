@@ -40,14 +40,17 @@
 namespace HelperRepeatedDemoFlatBuffers
 {
 
+constexpr uint32_t MAX_INTEGERS = 10;
+
 inline void set_average_repeated_integers(flatcc_builder_t* B, const uint32_t length)
 {
-  Repeated_Integers_values_start(B);
-  for (uint32_t i = 0; i < length; i++) {
-    int32_t value = std::numeric_limits<int32_t>::max() / 2 - 1000 + (i * 200);
-    Repeated_Integers_values_push(B, &value);
+  // Fill an array and hand it over in one call, as the other libraries fill their array field.
+  int32_t values[MAX_INTEGERS];
+  const uint32_t count = (length < MAX_INTEGERS) ? length : MAX_INTEGERS;
+  for (uint32_t i = 0; i < count; i++) {
+    values[i] = std::numeric_limits<int32_t>::max() / 2 - 1000 + (i * 200);
   }
-  Repeated_Integers_values_end(B);
+  Repeated_Integers_values_create(B, values, count);
 }
 
 inline bool compare_average_repeated_integers(Repeated_Integers_table_t msg, const uint32_t length)
@@ -70,9 +73,7 @@ inline void set_average_repeated_messages(flatcc_builder_t* B, const uint32_t le
 {
   Repeated_Messages_items_start(B);
   for (uint32_t i = 0; i < length; i++) {
-    Repeated_Messages_items_push_start(B);
-    HelperSimpleTypesFlatBuffers::set_average(B);
-    Repeated_Messages_items_push_end(B);
+    Repeated_Messages_items_push_create(B, SIMPLE_TYPES_AVERAGE_ARGS);
   }
   Repeated_Messages_items_end(B);
 }
