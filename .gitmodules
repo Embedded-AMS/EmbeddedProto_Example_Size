@@ -7,3 +7,6 @@
 [submodule "Nanopb"]
 	path = External/Nanopb
 	url = https://github.com/nanopb/nanopb.git
+[submodule "flatcc"]
+	path = External/flatcc
+	url = https://github.com/dvidelabs/flatcc.git
