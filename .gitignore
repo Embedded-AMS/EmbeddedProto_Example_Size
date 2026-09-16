@@ -3,6 +3,15 @@
 # Learn more about .gitignore:
 #     https://www.atlassian.com/git/tutorials/saving-changes/gitignore
 
+# The generated and build results.
+build/
+Generated/*.h 
+Generated/*.cpp
+Generated/*.c
+
+# Python virtual environments
+venv/
+
 # Node artifact files
 node_modules/
 dist/

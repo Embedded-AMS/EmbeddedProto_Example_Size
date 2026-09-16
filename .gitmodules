@@ -1,0 +1,9 @@
+[submodule "EmbeddedProto"]
+	path = External/EmbeddedProto
+	url = https://github.com/Embedded-AMS/EmbeddedProto.git
+[submodule "ArduinoJson"]
+	path = External/ArduinoJson
+	url = https://github.com/bblanchon/ArduinoJson.git
+[submodule "Nanopb"]
+	path = External/Nanopb
+	url = https://github.com/nanopb/nanopb.git
