@@ -35,9 +35,11 @@
 #include <EmbeddedProto/ReadBufferFixedSize.h>
 
 #include <EmbeddedProto/helper_serialize_mode.h>
+#include <scenario.h>
 uint32_t run_scenario()
 {
   String_Demo_Message<HelperString::STRING_LENGTH> msg;
+  report_message_size(sizeof(msg));
   HelperString::set_string(msg);
 
   // Serialize the data to buffer
@@ -53,6 +55,7 @@ uint32_t run_scenario()
   // Clear the message data
   String_Demo_Message<HelperString::STRING_LENGTH> msg_deserialized;
 
+  report_message_size(sizeof(msg_deserialized));
   // Deserialize the buffer into the message object
   const auto deserialize_result = msg_deserialized.deserialize(read_buffer);
 

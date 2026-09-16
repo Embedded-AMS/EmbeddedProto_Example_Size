@@ -34,6 +34,7 @@
 #include <EmbeddedProto/ReadBufferFixedSize.h>
 
 #include <EmbeddedProto/helper_serialize_mode.h>
+#include <scenario.h>
 uint32_t run_scenario()
 {
     // Use sufficiently large buffers to handle the serialized data
@@ -43,6 +44,7 @@ uint32_t run_scenario()
 
     // Step 1: Set configuration data in EnvelopToMCU (5 configurations)
     EnvelopToMCU<5> envelop_to_mcu;
+    report_message_size(sizeof(envelop_to_mcu));
     HelperCompleteDemo::set_envelop_to_mcu_configurations_demo(envelop_to_mcu);
 
     // Step 2: Serialize EnvelopToMCU to a buffer
@@ -62,6 +64,8 @@ uint32_t run_scenario()
     read_buffer.set_bytes_written(buffer_size);
 
     EnvelopToMCU<5> envelop_to_mcu_deserialized;
+
+    report_message_size(sizeof(envelop_to_mcu_deserialized));
     const auto deserialize_config_result = envelop_to_mcu_deserialized.deserialize(read_buffer);
     if (deserialize_config_result != EmbeddedProto::Error::NO_ERRORS)
     {
@@ -89,6 +93,8 @@ uint32_t run_scenario()
     read_buffer.set_bytes_written(command_buffer_size);
 
     EnvelopToMCU<5> envelop_to_mcu_final;
+
+    report_message_size(sizeof(envelop_to_mcu_final));
     const auto deserialize_command_result = envelop_to_mcu_final.deserialize(read_buffer);
     if (deserialize_command_result != EmbeddedProto::Error::NO_ERRORS)
     {
@@ -99,6 +105,7 @@ uint32_t run_scenario()
     // Use 5 states as requested
     EnvelopFromMCU<5, 25, 25> envelop_from_mcu_states;
 
+    report_message_size(sizeof(envelop_from_mcu_states));
     // Set up different state types in the States message
     States<5>& states_msg = envelop_from_mcu_states.mutable_states();
 
@@ -141,6 +148,7 @@ uint32_t run_scenario()
     // Step 10: Set the measurement data in EnvelopFromMCU (25 measurements and timestamps)
     EnvelopFromMCU<5, 25, 25> envelop_from_mcu_measurement;
 
+    report_message_size(sizeof(envelop_from_mcu_measurement));
     // Set measurement data using helper function
     Measurement<25, 25>& measurement_msg = envelop_from_mcu_measurement.mutable_measurement();
 
@@ -170,6 +178,7 @@ uint32_t run_scenario()
     // Additional verification: test deserialization of states and measurement
     EnvelopFromMCU<5, 25, 25> test_envelop;
 
+    report_message_size(sizeof(test_envelop));
     // Test states deserialization
     const uint32_t states_size = write_buffer.get_size();
     read_buffer.clear();
@@ -177,6 +186,8 @@ uint32_t run_scenario()
     read_buffer.set_bytes_written(states_size);
 
     EnvelopFromMCU<5, 25, 25> test_states_envelop;
+
+    report_message_size(sizeof(test_states_envelop));
     const auto test_states_result = test_states_envelop.deserialize(read_buffer);
 
     // Test measurement deserialization

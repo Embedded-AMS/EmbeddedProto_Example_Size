@@ -32,6 +32,7 @@
 #include <NanoPB/helper_optional_demo.h>
 #include <pb_encode.h>
 #include <pb_decode.h>
+#include <scenario.h>
 
 // Volatile variable to prevent compiler from optimizing away serialization
 // The compiler must preserve the buffer write since this checksum depends on it
@@ -41,6 +42,7 @@ volatile uint8_t g_buffer_checksum = 0;
 uint32_t run_scenario()
 {
   Optional_Demo msg = Optional_Demo_init_default;
+  report_message_size(sizeof(msg));
   HelperOptionalDemoNanoPB::set_zero_with_presence(msg);
 
   // Create buffer for serialized data
@@ -61,6 +63,7 @@ uint32_t run_scenario()
   // Clear the message data
   Optional_Demo msg_deserialized = Optional_Demo_init_default;
 
+  report_message_size(sizeof(msg_deserialized));
   // Deserialize the buffer into the message object
   pb_istream_t istream = pb_istream_from_buffer(deserialize_buffer, buffer_size);
   const bool decode_success = pb_decode(&istream, Optional_Demo_fields, &msg_deserialized);

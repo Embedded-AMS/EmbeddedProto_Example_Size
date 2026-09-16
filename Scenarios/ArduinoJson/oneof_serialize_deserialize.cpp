@@ -30,6 +30,8 @@
 
 #include <ArduinoJson.h>
 #include <ArduinoJson/helper_oneof.h>
+#include <scenario.h>
+#include <ArduinoJson/counting_allocator.h>
 
 // Volatile variable to prevent compiler from optimizing away serialization
 // The compiler must preserve the buffer write since this checksum depends on it
@@ -39,13 +41,14 @@ volatile uint8_t g_buffer_checksum = 0;
 uint32_t run_scenario()
 {
   // Create a JSON document
-  JsonDocument doc;
+  JsonDocument doc(&g_json_allocator);
 
   // Set different oneof fields and serialize
   HelperOneOf::set_int32_field(doc);
 
   // Serialize the data to buffer
   char buffer[500];
+  report_message_size(sizeof(doc) + g_json_allocator.peak_bytes());
   const auto n_bytes_written = serializeJson(doc, buffer, sizeof(buffer));
 
   // Calculate checksum to prevent dead code elimination
@@ -57,7 +60,7 @@ uint32_t run_scenario()
   g_buffer_checksum = checksum;
 
   // Deserialize the buffer into a new document
-  JsonDocument doc_deserialized;
+  JsonDocument doc_deserialized(&g_json_allocator);
   DeserializationError error = deserializeJson(doc_deserialized, buffer, n_bytes_written);
 
   // Verify the deserialized data matches the original

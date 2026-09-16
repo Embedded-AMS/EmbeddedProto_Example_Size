@@ -34,6 +34,7 @@
 #include <pb_decode.h>
 
 #include <cstring>
+#include <scenario.h>
 
 namespace
 {
@@ -91,6 +92,7 @@ namespace
 uint32_t run_scenario()
 {
   Blob msg = Blob_init_default;
+  report_message_size(sizeof(msg));
   msg.payload.funcs.encode = &encode_payload;
   msg.payload.arg = nullptr;
 
@@ -112,6 +114,7 @@ uint32_t run_scenario()
   // Deserialize the buffer into a message that streams the payload into the sink
   PayloadSink sink;
   Blob msg_deserialized = Blob_init_default;
+  report_message_size(sizeof(msg_deserialized));
   msg_deserialized.payload.funcs.decode = &decode_payload;
   msg_deserialized.payload.arg = &sink;
 

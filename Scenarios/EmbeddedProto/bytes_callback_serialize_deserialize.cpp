@@ -36,6 +36,7 @@
 #include <EmbeddedProto/helper_serialize_mode.h>
 
 #include <cstring>
+#include <scenario.h>
 
 namespace
 {
@@ -83,6 +84,8 @@ uint32_t run_scenario()
   uint8_t window[HelperCallbackDemo::WINDOW_SIZE];
 
   Blob msg;
+
+  report_message_size(sizeof(msg));
   PayloadSource source;
   Payload::ChunkCallback source_callback;
   source_callback.set(source);
@@ -102,6 +105,7 @@ uint32_t run_scenario()
 
   // Deserialize the buffer into a message that streams the payload into the sink
   Blob msg_deserialized;
+  report_message_size(sizeof(msg_deserialized));
   PayloadSink sink;
   Payload::ChunkCallback sink_callback;
   sink_callback.set(sink);

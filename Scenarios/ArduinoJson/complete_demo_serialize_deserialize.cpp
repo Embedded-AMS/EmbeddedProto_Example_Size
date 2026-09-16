@@ -30,6 +30,8 @@
 
 #include <ArduinoJson.h>
 #include <ArduinoJson/helper_complete_demo.h>
+#include <scenario.h>
+#include <ArduinoJson/counting_allocator.h>
 
 // Volatile variable to prevent compiler from optimizing away serialization
 extern "C" volatile uint8_t g_buffer_checksum;
@@ -43,10 +45,11 @@ uint32_t run_scenario()
     char deserialize_buffer[2048];
 
     // Step 1: Set configuration data in EnvelopToMCU (5 configurations)
-    JsonDocument doc_envelop_to_mcu;
+    JsonDocument doc_envelop_to_mcu(&g_json_allocator);
     HelperCompleteDemoArduinoJson::set_envelop_to_mcu_configurations_demo(doc_envelop_to_mcu, 5);
 
     // Step 2: Serialize EnvelopToMCU to a buffer
+    report_message_size(sizeof(doc_envelop_to_mcu) + g_json_allocator.peak_bytes());
     const auto n_bytes_config = serializeJson(doc_envelop_to_mcu, buffer, sizeof(buffer));
     if (n_bytes_config == 0)
     {
@@ -54,7 +57,7 @@ uint32_t run_scenario()
     }
 
     // Step 3: Clear the EnvelopToMCU message (create fresh document)
-    JsonDocument doc_envelop_to_mcu_deserialized;
+    JsonDocument doc_envelop_to_mcu_deserialized(&g_json_allocator);
 
     // Step 4: Deserialize the buffer to EnvelopToMCU
     memcpy(deserialize_buffer, buffer, n_bytes_config);
@@ -68,6 +71,7 @@ uint32_t run_scenario()
     HelperCompleteDemoArduinoJson::set_envelop_to_mcu_command_demo(doc_envelop_to_mcu_deserialized);
 
     // Step 6: Serialize EnvelopToMCU to the buffer
+    report_message_size(sizeof(doc_envelop_to_mcu_deserialized) + g_json_allocator.peak_bytes());
     const auto n_bytes_command = serializeJson(doc_envelop_to_mcu_deserialized, buffer, sizeof(buffer));
     if (n_bytes_command == 0)
     {
@@ -75,7 +79,7 @@ uint32_t run_scenario()
     }
 
     // Step 7: Clear EnvelopToMCU message (create fresh document)
-    JsonDocument doc_envelop_to_mcu_final;
+    JsonDocument doc_envelop_to_mcu_final(&g_json_allocator);
 
     // Step 8: Deserialize the buffer into EnvelopToMCU
     memcpy(deserialize_buffer, buffer, n_bytes_command);
@@ -87,7 +91,7 @@ uint32_t run_scenario()
 
     // Step 9: Loop over the different state types and set state data in EnvelopFromMCU
     // Use 5 states as requested
-    JsonDocument doc_envelop_from_mcu_states;
+    JsonDocument doc_envelop_from_mcu_states(&g_json_allocator);
 
     // Set up different state types in the States message
     JsonObject states_obj = doc_envelop_from_mcu_states["states"].to<JsonObject>();
@@ -125,6 +129,7 @@ uint32_t run_scenario()
     state4["timestamp"] = 5000000;
 
     // Serialize the states to a buffer
+    report_message_size(sizeof(doc_envelop_from_mcu_states) + g_json_allocator.peak_bytes());
     const auto n_bytes_states = serializeJson(doc_envelop_from_mcu_states, buffer, sizeof(buffer));
     if (n_bytes_states == 0)
     {
@@ -132,7 +137,7 @@ uint32_t run_scenario()
     }
 
     // Step 10: Set the measurement data in EnvelopFromMCU (25 measurements and timestamps)
-    JsonDocument doc_envelop_from_mcu_measurement;
+    JsonDocument doc_envelop_from_mcu_measurement(&g_json_allocator);
 
     // Set measurement data
     JsonObject measurement_obj = doc_envelop_from_mcu_measurement["measurement"].to<JsonObject>();
@@ -147,6 +152,7 @@ uint32_t run_scenario()
     }
 
     // Step 11: Serialize the measurement data
+    report_message_size(sizeof(doc_envelop_from_mcu_measurement) + g_json_allocator.peak_bytes());
     const auto n_bytes_measurement = serializeJson(doc_envelop_from_mcu_measurement, buffer, sizeof(buffer));
     if (n_bytes_measurement == 0)
     {
@@ -158,7 +164,7 @@ uint32_t run_scenario()
     uint32_t total_buffer_size = n_bytes_measurement;
 
     // Additional verification: test deserialization of states and measurement
-    JsonDocument test_envelop;
+    JsonDocument test_envelop(&g_json_allocator);
 
     // Test states deserialization
     memcpy(deserialize_buffer, buffer, n_bytes_measurement);

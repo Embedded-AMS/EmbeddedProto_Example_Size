@@ -34,10 +34,12 @@
 #include <EmbeddedProto/ReadBufferFixedSize.h>
 
 #include <EmbeddedProto/helper_serialize_mode.h>
+#include <scenario.h>
 uint32_t run_scenario()
 {
   OneOf_Demo msg;
 
+  report_message_size(sizeof(msg));
   // Set different oneof fields and serialize
   HelperOneOf::set_int32_field(msg);
 
@@ -53,6 +55,7 @@ uint32_t run_scenario()
 
   // Deserialize the buffer into a new message object
   OneOf_Demo msg_deserialized;
+  report_message_size(sizeof(msg_deserialized));
   const auto deserialize_result = msg_deserialized.deserialize(read_buffer);
 
   // Verify the deserialized data matches the original

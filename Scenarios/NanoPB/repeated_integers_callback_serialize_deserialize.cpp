@@ -34,6 +34,7 @@
 #include <pb_decode.h>
 
 #include <cstring>
+#include <scenario.h>
 
 namespace
 {
@@ -77,6 +78,7 @@ namespace
 uint32_t run_scenario()
 {
   Sample_Stream msg = Sample_Stream_init_default;
+  report_message_size(sizeof(msg));
   msg.samples.funcs.encode = &encode_samples;
   msg.samples.arg = nullptr;
 
@@ -98,6 +100,7 @@ uint32_t run_scenario()
   // Deserialize the buffer into a message that streams the samples into the sink
   SampleSink sink;
   Sample_Stream msg_deserialized = Sample_Stream_init_default;
+  report_message_size(sizeof(msg_deserialized));
   msg_deserialized.samples.funcs.decode = &decode_samples;
   msg_deserialized.samples.arg = &sink;
 

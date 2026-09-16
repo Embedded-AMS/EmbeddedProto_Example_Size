@@ -34,9 +34,11 @@
 #include <EmbeddedProto/ReadBufferFixedSize.h>
 
 #include <EmbeddedProto/helper_serialize_mode.h>
+#include <scenario.h>
 uint32_t run_scenario()
 {
   Simple_Types msg;
+  report_message_size(sizeof(msg));
   HelperSimpleTypes::set_average(msg);
 
   // Serialize the data to buffer
@@ -52,6 +54,7 @@ uint32_t run_scenario()
   // Clear the message data
   Simple_Types msg_deserialized;
 
+  report_message_size(sizeof(msg_deserialized));
   // Deserialize the buffer into the message object
   const auto deserialize_result = msg_deserialized.deserialize(read_buffer);
 

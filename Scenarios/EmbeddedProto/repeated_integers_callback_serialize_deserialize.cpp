@@ -36,6 +36,7 @@
 #include <EmbeddedProto/helper_serialize_mode.h>
 
 #include <cstring>
+#include <scenario.h>
 
 namespace
 {
@@ -76,6 +77,7 @@ namespace
 uint32_t run_scenario()
 {
   Sample_Stream msg;
+  report_message_size(sizeof(msg));
   SampleSource source;
   Samples::SourceCallback source_callback;
   source_callback.set(source);
@@ -93,6 +95,7 @@ uint32_t run_scenario()
 
   // Deserialize the buffer into a message that streams the samples into the sink
   Sample_Stream msg_deserialized;
+  report_message_size(sizeof(msg_deserialized));
   SampleSink sink;
   Samples::SinkCallback sink_callback;
   sink_callback.set(sink);

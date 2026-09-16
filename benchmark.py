@@ -52,6 +52,7 @@ class DynamicMetrics:
     """Data class to hold dynamic metrics from device."""
     cpu_cycles: Optional[int]
     n_bytes_in_buffer: Optional[int]
+    message_size_bytes: Optional[int]
 
 @dataclass
 class GitInfo:
@@ -164,6 +165,7 @@ class BenchmarkResult:
     bss_bytes: int
     cpu_cycles: Optional[int]
     n_bytes_in_buffer: Optional[int]
+    message_size_bytes: Optional[int]
     library_commit_hash: str
     library_branch: Optional[str]
     library_tag: Optional[str]
@@ -883,7 +885,7 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
     elf_file = Path(elf_path)
     if not elf_file.exists():
         print("Warning: ELF file not found for dynamic metrics reading")
-        return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None)
+        return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None, message_size_bytes=None)
 
     print(f"Reading dynamic metrics from device...")
 
@@ -899,6 +901,7 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
         # Parse symbol addresses
         g_cpu_cycles_used_addr = None
         g_n_bytes_in_buffer_addr = None
+        g_message_size_bytes_addr = None
 
         for line in nm_result.stdout.split('\n'):
             line = line.strip()
@@ -917,6 +920,8 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
                             g_cpu_cycles_used_addr = address
                         elif symbol_name == 'g_n_bytes_in_buffer':
                             g_n_bytes_in_buffer_addr = address
+                        elif symbol_name == 'g_message_size_bytes':
+                            g_message_size_bytes_addr = address
                     except ValueError:
                         continue
             else:
@@ -928,16 +933,22 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
                         g_cpu_cycles_used_addr = int(parts[0])
                     elif symbol_name == 'g_n_bytes_in_buffer':
                         g_n_bytes_in_buffer_addr = int(parts[0])
+                    elif symbol_name == 'g_message_size_bytes':
+                        g_message_size_bytes_addr = int(parts[0])
 
         if g_cpu_cycles_used_addr is None:
             print("Warning: Could not find required symbols in ELF file")
-            return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None)
+            return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None, message_size_bytes=None)
 
         print(f"Found symbols: g_cpu_cycles_used at 0x{g_cpu_cycles_used_addr:08X}")
         if g_n_bytes_in_buffer_addr is not None:
             print(f"  g_n_bytes_in_buffer at 0x{g_n_bytes_in_buffer_addr:08X}")
         else:
             print("  g_n_bytes_in_buffer not found (buffer size measurement not available)")
+        if g_message_size_bytes_addr is not None:
+            print(f"  g_message_size_bytes at 0x{g_message_size_bytes_addr:08X}")
+        else:
+            print("  g_message_size_bytes not found (message size measurement not available)")
 
         # Wait for scenario to complete
         print(f"Waiting {delay_seconds} seconds for scenario to complete...")
@@ -964,6 +975,10 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
                 '-c', f'mdw {addr2_hex}',
             ])
 
+        if g_message_size_bytes_addr is not None:
+            openocd_cmd.extend([
+                '-c', f'mdw 0x{g_message_size_bytes_addr:08x}',
+            ])
         openocd_cmd.extend([
             '-c', 'resume',
             '-c', 'exit'
@@ -983,10 +998,12 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
             all_output = result.stdout + "\n" + result.stderr
             cpu_cycles = None
             n_bytes_in_buffer = None
+            message_size_bytes = None
 
             # OpenOCD mdw output format: "0x20000028: 12345678"
             addr1_lower = f"0x{g_cpu_cycles_used_addr:08x}"
             addr2_lower = f"0x{g_n_bytes_in_buffer_addr:08x}" if g_n_bytes_in_buffer_addr is not None else None
+            addr3_lower = f"0x{g_message_size_bytes_addr:08x}" if g_message_size_bytes_addr is not None else None
 
             for line in all_output.split('\n'):
                 line = line.strip().lower()
@@ -1014,27 +1031,37 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
                             n_bytes_in_buffer = int(value_str, 16)
                         except (ValueError, IndexError):
                             pass
+                elif addr3_lower is not None and addr3_lower in line:
+                    parts = line.split(':')
+                    if len(parts) >= 2:
+                        try:
+                            value_str = parts[1].strip().split()[0]
+                            message_size_bytes = int(value_str, 16)
+                        except (ValueError, IndexError):
+                            pass
 
             print(f"Dynamic metrics read successfully:")
             print(f"  CPU cycles: {cpu_cycles}" if cpu_cycles is not None else "  CPU cycles: N/A")
             print(f"  Buffer bytes: {n_bytes_in_buffer}" if n_bytes_in_buffer is not None else "  Buffer bytes: N/A")
+            print(f"  Message bytes: {message_size_bytes}" if message_size_bytes is not None else "  Message bytes: N/A")
 
             return DynamicMetrics(
                 cpu_cycles=cpu_cycles,
-                n_bytes_in_buffer=n_bytes_in_buffer
+                n_bytes_in_buffer=n_bytes_in_buffer,
+                message_size_bytes=message_size_bytes
             )
 
         except subprocess.CalledProcessError as e:
             error_output = e.stderr or e.stdout or "Unknown OpenOCD error"
             print(f"Warning: Could not read dynamic metrics: {error_output.strip()}")
-            return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None)
+            return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None, message_size_bytes=None)
 
     except subprocess.CalledProcessError as e:
         print(f"Warning: Could not extract symbol information: {str(e)}")
-        return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None)
+        return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None, message_size_bytes=None)
     except Exception as e:
         print(f"Warning: Unexpected error reading dynamic metrics: {str(e)}")
-        return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None)
+        return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None, message_size_bytes=None)
 
 def init_database() -> None:
     """
@@ -1061,6 +1088,7 @@ def init_database() -> None:
                     bss_bytes INTEGER NOT NULL,
                     cpu_cycles INTEGER,
                     n_bytes_in_buffer INTEGER,
+                    message_size_bytes INTEGER,
                     library_commit_hash TEXT NOT NULL,
                     library_branch TEXT,
                     library_tag TEXT,
@@ -1092,6 +1120,13 @@ def init_database() -> None:
             # Add n_bytes_in_buffer column if it doesn't exist (for existing databases)
             try:
                 cursor.execute('ALTER TABLE benchmark_results ADD COLUMN n_bytes_in_buffer INTEGER')
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
+
+            # Add message_size_bytes column if it doesn't exist (for existing databases)
+            try:
+                cursor.execute('ALTER TABLE benchmark_results ADD COLUMN message_size_bytes INTEGER')
             except sqlite3.OperationalError:
                 # Column already exists
                 pass
@@ -1142,10 +1177,10 @@ def store_result(result: BenchmarkResult) -> None:
             cursor.execute('''
                 INSERT INTO benchmark_results (
                     timestamp, library, scenario, benchmark_mode, text_bytes, data_bytes, bss_bytes,
-                    cpu_cycles, n_bytes_in_buffer,
+                    cpu_cycles, n_bytes_in_buffer, message_size_bytes,
                     library_commit_hash, library_branch, library_tag, library_modified,
                     build_type, optimization_flags
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 result.timestamp,
                 result.library,
@@ -1156,6 +1191,7 @@ def store_result(result: BenchmarkResult) -> None:
                 result.bss_bytes,
                 result.cpu_cycles,
                 result.n_bytes_in_buffer,
+                result.message_size_bytes,
                 result.library_commit_hash,
                 result.library_branch,
                 result.library_tag,
@@ -1216,7 +1252,8 @@ def get_latest_results(
                     library_tag,
                     library_modified,
                     build_type,
-                    optimization_flags
+                    optimization_flags,
+                    message_size_bytes
                 FROM benchmark_results
             '''
             conditions = []
@@ -1256,7 +1293,8 @@ def get_latest_results(
                     library_tag=row[11],
                     library_modified=bool(row[12]),
                     build_type=row[13] if row[13] else 'Release',
-                    optimization_flags=row[14] if row[14] else get_optimization_flags('Release')
+                    optimization_flags=row[14] if row[14] else get_optimization_flags('Release'),
+                    message_size_bytes=row[15]
                 )
                 results.append(result)
 
@@ -1313,6 +1351,7 @@ def create_benchmark_result(
         bss_bytes=static_sizes.bss_bytes,
         cpu_cycles=dynamic_metrics.cpu_cycles,
         n_bytes_in_buffer=dynamic_metrics.n_bytes_in_buffer,
+        message_size_bytes=dynamic_metrics.message_size_bytes,
         library_commit_hash=git_info.commit_hash,
         library_branch=git_info.branch,
         library_tag=git_info.tag,
@@ -1358,6 +1397,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
             f"{result.data_bytes:,}",
             f"{result.bss_bytes:,}",
             f"{result.cpu_cycles:,}" if result.cpu_cycles is not None else "N/A",
+            f"{result.message_size_bytes:,}" if result.message_size_bytes is not None else "N/A",
             result.library_commit_hash[:8] if result.library_commit_hash else "N/A"
         ]
         table_data.append(row)
@@ -1378,6 +1418,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
         "data (bytes)",
         "bss (bytes)",
         "CPU Cycles",
+        "Message (bytes)",
         "Commit"
     ]
 
@@ -1396,6 +1437,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
             else:
                 summary_data[0].append("N/A")
 
+            summary_data[0].append("")
             summary_data[0].append("")
 
             print("\nSummary:")
@@ -1432,6 +1474,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
             else:
                 summary_row.append("N/A")
 
+            summary_row.append("")
             summary_row.append("")
 
             summary_line = " | ".join(f"{item:<{width}}" for item, width in zip(summary_row, col_widths))

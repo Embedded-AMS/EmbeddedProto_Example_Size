@@ -11,6 +11,16 @@ embedded IDE sets for a C++ project. Without `-fno-exceptions -fno-rtti` GCC lin
 unwinder and RTTI into every C++ build, about 4.5 kB that nanopb (plain C) never pays. See
 `CMakeLists.txt`, the flags are stored with every result in the database.
 
+# What is measured
+- `text`, `data` and `bss` from `arm-none-eabi-size`, compare against the `Baseline/blinky` scenario
+  to get the cost of a library.
+- `cpu_cycles` from the DWT cycle counter around `run_scenario()`, read over SWD.
+- `n_bytes_in_buffer`, the number of bytes serialized, which every library must agree on.
+- `message_size_bytes`, the RAM the scenario's message object takes. A scenario reports each
+  message it creates with `report_message_size()` and the largest is kept. For Embedded Proto and
+  nanopb that is `sizeof()` of the message. ArduinoJson keeps its data on the heap, so its
+  documents use a counting allocator and report the peak heap use plus `sizeof()`.
+
 # Per library options
 The `.proto` files are shared by all libraries. Options which are specific to one library live
 next to them in `Protofiles/`:

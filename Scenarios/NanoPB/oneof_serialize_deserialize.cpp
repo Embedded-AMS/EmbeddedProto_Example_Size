@@ -32,11 +32,13 @@
 #include <NanoPB/helper_oneof.h>
 #include <pb_encode.h>
 #include <pb_decode.h>
+#include <scenario.h>
 
 uint32_t run_scenario()
 {
   OneOf_Demo msg = OneOf_Demo_init_default;
 
+  report_message_size(sizeof(msg));
   // Set different oneof fields and serialize
   HelperOneOf::set_int32_field(msg);
 
@@ -47,6 +49,7 @@ uint32_t run_scenario()
 
   // Deserialize the buffer into a new message object
   OneOf_Demo msg_deserialized = OneOf_Demo_init_default;
+  report_message_size(sizeof(msg_deserialized));
   pb_istream_t istream = pb_istream_from_buffer(buffer, stream.bytes_written);
   bool deserialize_success = pb_decode(&istream, OneOf_Demo_fields, &msg_deserialized);
 

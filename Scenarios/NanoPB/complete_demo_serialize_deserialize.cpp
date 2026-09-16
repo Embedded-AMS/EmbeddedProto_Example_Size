@@ -32,6 +32,7 @@
 #include <NanoPB/helper_complete_demo.h>
 #include <pb_encode.h>
 #include <pb_decode.h>
+#include <scenario.h>
 
 uint32_t run_scenario()
 {
@@ -42,6 +43,7 @@ uint32_t run_scenario()
 
     // Step 1: Set configuration data in EnvelopToMCU (5 configurations)
     EnvelopToMCU envelop_to_mcu = EnvelopToMCU_init_default;
+    report_message_size(sizeof(envelop_to_mcu));
     HelperCompleteDemoNanoPB::set_envelop_to_mcu_configurations_demo(envelop_to_mcu);
 
     // Step 2: Serialize EnvelopToMCU to a buffer
@@ -60,6 +62,8 @@ uint32_t run_scenario()
     memcpy(read_buffer, write_buffer, buffer_size);
 
     EnvelopToMCU envelop_to_mcu_deserialized = EnvelopToMCU_init_default;
+
+    report_message_size(sizeof(envelop_to_mcu_deserialized));
     pb_istream_t istream = pb_istream_from_buffer(read_buffer, buffer_size);
     bool deserialize_config_result = pb_decode(&istream, EnvelopToMCU_fields, &envelop_to_mcu_deserialized);
     if (!deserialize_config_result)
@@ -86,6 +90,8 @@ uint32_t run_scenario()
     memcpy(read_buffer, write_buffer, command_buffer_size);
 
     EnvelopToMCU envelop_to_mcu_final = EnvelopToMCU_init_default;
+
+    report_message_size(sizeof(envelop_to_mcu_final));
     istream = pb_istream_from_buffer(read_buffer, command_buffer_size);
     bool deserialize_command_result = pb_decode(&istream, EnvelopToMCU_fields, &envelop_to_mcu_final);
     if (!deserialize_command_result)
@@ -96,6 +102,7 @@ uint32_t run_scenario()
     // Step 9: Loop over the different state types and set state data in EnvelopFromMCU
     // Use 5 states as requested - matching EmbeddedProto scenario exactly
     EnvelopFromMCU envelop_from_mcu_states = EnvelopFromMCU_init_default;
+    report_message_size(sizeof(envelop_from_mcu_states));
     envelop_from_mcu_states.which_data = EnvelopFromMCU_states_tag;
     
     // Set up different state types in the States message
@@ -143,6 +150,7 @@ uint32_t run_scenario()
     // Step 10: Set the measurement data in EnvelopFromMCU (25 measurements and timestamps)
     // Matching EmbeddedProto scenario exactly
     EnvelopFromMCU envelop_from_mcu_measurement = EnvelopFromMCU_init_default;
+    report_message_size(sizeof(envelop_from_mcu_measurement));
     envelop_from_mcu_measurement.which_data = EnvelopFromMCU_measurement_tag;
     
     // Set measurement data using same pattern as EmbeddedProto
@@ -172,11 +180,14 @@ uint32_t run_scenario()
     // Additional verification: test deserialization of states and measurement
     EnvelopFromMCU test_envelop = EnvelopFromMCU_init_default;
 
+    report_message_size(sizeof(test_envelop));
     // Test states deserialization
     const uint32_t states_size = stream.bytes_written;
     memcpy(read_buffer, write_buffer, states_size);
 
     EnvelopFromMCU test_states_envelop = EnvelopFromMCU_init_default;
+
+    report_message_size(sizeof(test_states_envelop));
     istream = pb_istream_from_buffer(read_buffer, states_size);
     bool test_states_result = pb_decode(&istream, EnvelopFromMCU_fields, &test_states_envelop);
 

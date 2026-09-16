@@ -30,19 +30,22 @@
 
 #include <ArduinoJson.h>
 #include <ArduinoJson/helper_string.h>
+#include <scenario.h>
+#include <ArduinoJson/counting_allocator.h>
 
 uint32_t run_scenario()
 {
   // Create a JSON document with enough capacity for our string
-  StaticJsonDocument<200> doc;
+  JsonDocument doc(&g_json_allocator);
   HelperString::set_string(doc);
 
   // Serialize the JSON document to a buffer
   char buffer[200];
+  report_message_size(sizeof(doc) + g_json_allocator.peak_bytes());
   size_t buffer_size = serializeJson(doc, buffer, sizeof(buffer));
 
   // Create a new document for deserialization
-  StaticJsonDocument<200> doc_deserialized;
+  JsonDocument doc_deserialized(&g_json_allocator);
 
   // Deserialize from the buffer
   DeserializationError error = deserializeJson(doc_deserialized, buffer);

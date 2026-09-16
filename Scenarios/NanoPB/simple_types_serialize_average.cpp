@@ -31,6 +31,7 @@
 #include "simple_types.pb.h"
 #include <NanoPB/helper_simple_types.h>
 #include <pb_encode.h>
+#include <scenario.h>
 
 // Volatile variable to prevent compiler from optimizing away serialization
 // The compiler must preserve the buffer write since this checksum depends on it
@@ -40,6 +41,7 @@ volatile uint8_t g_buffer_checksum = 0;
 uint32_t run_scenario()
 {
   Simple_Types msg = Simple_Types_init_default;
+  report_message_size(sizeof(msg));
   HelperSimpleTypesNanoPB::set_average(msg);
 
   // Create buffer for serialized data

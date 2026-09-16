@@ -32,10 +32,12 @@
 #include "NanoPB/helper_string.h"
 #include <pb_encode.h>
 #include <pb_decode.h>
+#include <scenario.h>
 
 uint32_t run_scenario()
 {
   String_Demo_Message msg = String_Demo_Message_init_default;
+  report_message_size(sizeof(msg));
   HelperString::set_string(msg);
 
   // Serialize the data to buffer
@@ -45,6 +47,7 @@ uint32_t run_scenario()
 
   // Deserialize back into a new message
   String_Demo_Message msg_deserialized = String_Demo_Message_init_default;
+  report_message_size(sizeof(msg_deserialized));
   pb_istream_t istream = pb_istream_from_buffer(buffer, stream.bytes_written);
   bool deserialize_status = pb_decode(&istream, String_Demo_Message_fields, &msg_deserialized);
 

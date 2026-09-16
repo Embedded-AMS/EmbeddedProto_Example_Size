@@ -49,6 +49,8 @@ volatile uint32_t g_cpu_cycles_used = 0;
 
 // Global variable to store the number of bytes used in the serialization buffer. (accessible via SWD)
 volatile uint32_t g_n_bytes_in_buffer = 0;
+// Global variable to store the RAM taken by the scenario's message object. (accessible via SWD)
+volatile uint32_t g_message_size_bytes = 0;
 
 
 /* USER CODE END PV */
