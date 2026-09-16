@@ -71,7 +71,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPU_FLAGS}")
 set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} ${CPU_FLAGS}")
 
 # Command line parameters for scenario selection
-set(LIBRARY "" CACHE STRING "Library subfolder to select scenario from (ArduinoJson, EmbeddedProto, NanoPB, FlatBuffers)")
+set(LIBRARY "" CACHE STRING "Library subfolder to select scenario from (ArduinoJson, EmbeddedProto, NanoPB, FlatBuffers, Zcbor)")
 set(SCENARIO "" CACHE STRING "Specific scenario file to build (without extension)")
 set(BENCHMARK_MODE "normal" CACHE STRING "Benchmark mode: normal or partial")
 

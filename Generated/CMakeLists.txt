@@ -247,6 +247,62 @@ elseif(LIBRARY STREQUAL "FlatBuffers")
     target_include_directories(generated_code PUBLIC ${FLATCC_DIR}/include)
     target_compile_options(generated_code PUBLIC -include ${CMAKE_SOURCE_DIR}/Scenarios/FlatBuffers/counting_alloc.h)
 
+elseif(LIBRARY STREQUAL "Zcbor")
+    # zcbor, Nordic's CBOR library: C code generated from CDDL schemas by a Python tool
+    # which is installed from the submodule into its own venv, like the nanopb generator.
+    set(ZCBOR_DIR "${CMAKE_SOURCE_DIR}/External/zcbor")
+    set(ZCBOR_VENV_DIR "${ZCBOR_DIR}/venv")
+    set(ZCBOR_BIN "${ZCBOR_VENV_DIR}/bin/zcbor")
+
+    if(NOT EXISTS "${ZCBOR_BIN}")
+        message(STATUS "Creating Python venv for zcbor at ${ZCBOR_VENV_DIR}")
+        execute_process(COMMAND python3 -m venv "${ZCBOR_VENV_DIR}" RESULT_VARIABLE VENV_RESULT)
+        if(NOT VENV_RESULT EQUAL 0)
+            message(FATAL_ERROR "Failed to create the zcbor venv")
+        endif()
+        # zcbor 0.9.1 needs the cbor2 5.x API.
+        execute_process(
+            COMMAND "${ZCBOR_VENV_DIR}/bin/pip" install --quiet "${ZCBOR_DIR}" "cbor2<6"
+            RESULT_VARIABLE PIP_RESULT
+        )
+        if(NOT PIP_RESULT EQUAL 0 OR NOT EXISTS "${ZCBOR_BIN}")
+            message(FATAL_ERROR "Failed to install zcbor into its venv")
+        endif()
+    endif()
+
+    # One generated set for every schema, so a type shared between schemas exists once.
+    # -s keeps the struct member names short, -b 32 sizes plain int and uint for the target.
+    file(GLOB CDDL_FILES "${CMAKE_SOURCE_DIR}/Protofiles/*.cddl")
+    set(CDDL_ARGS "")
+    foreach(CDDL_FILE ${CDDL_FILES})
+        list(APPEND CDDL_ARGS -c ${CDDL_FILE})
+    endforeach()
+    set(ZCBOR_ENTRY_TYPES Simple_Types String_Demo_Message OneOf_Demo Optional_Demo
+        Repeated_Integers Repeated_Messages Nested_Repeated_Messages EnvelopToMCU EnvelopFromMCU)
+    message(STATUS "Generating zcbor code for ${CDDL_FILES}")
+    execute_process(
+        COMMAND ${ZCBOR_BIN} code ${CDDL_ARGS} -e -d -s -b 32 -t ${ZCBOR_ENTRY_TYPES}
+            --oc ${CMAKE_CURRENT_SOURCE_DIR}/cbor_messages.c
+            --oh ${CMAKE_CURRENT_SOURCE_DIR}/cbor_messages.h
+            --oht ${CMAKE_CURRENT_SOURCE_DIR}/cbor_messages_types.h
+        RESULT_VARIABLE ZCBOR_RESULT
+        ERROR_VARIABLE ZCBOR_ERROR
+        OUTPUT_QUIET
+    )
+    if(NOT ZCBOR_RESULT EQUAL 0)
+        message(FATAL_ERROR "zcbor code generation failed: ${ZCBOR_ERROR}")
+    endif()
+
+    add_library(generated_code STATIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/cbor_messages_encode.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cbor_messages_decode.c"
+        "${ZCBOR_DIR}/src/zcbor_common.c"
+        "${ZCBOR_DIR}/src/zcbor_encode.c"
+        "${ZCBOR_DIR}/src/zcbor_decode.c"
+    )
+    target_include_directories(generated_code PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_include_directories(generated_code PUBLIC ${ZCBOR_DIR}/include)
+
 else()
     # For ArduinoJson and Baseline, no code generation is needed
     message(STATUS "No code generation required for ${LIBRARY}")

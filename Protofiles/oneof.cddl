@@ -1,0 +1,44 @@
+ ;
+ ;  Copyright (C) 2020-2026 Embedded AMS B.V. - All Rights Reserved
+ ;
+ ;  This file is part of Embedded Proto.
+ ;
+ ;  Embedded Proto is open source software: you can redistribute it and/or 
+ ;  modify it under the terms of the GNU General Public License as published 
+ ;  by the Free Software Foundation, version 3 of the license.
+ ;
+ ;  Embedded Proto  is distributed in the hope that it will be useful,
+ ;  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ ;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ ;  GNU General Public License for more details.
+ ;
+ ;  You should have received a copy of the GNU General Public License
+ ;  along with Embedded Proto. If not, see <https://www.gnu.org/licenses/>.
+ ;
+ ;  For commercial and closed source application please visit:
+ ;  <https://embeddedproto.com/pricing/>.
+ ;
+ ;  Embedded AMS B.V.
+ ;  Info:
+ ;    info at EmbeddedProto dot com
+ ;
+ ;  Postal address:
+ ;    Atoomweg 2
+ ;    1627 LE, Hoorn
+ ;    the Netherlands
+ ;/
+
+; CDDL counterpart of oneof.proto for zcbor. The oneof is a choice of map entries.
+
+OneOf_Demo = {
+  ? data_field: (
+    int32_value: 1 => int //
+    int64_value: 2 => int .size 8 //
+    uint32_value: 3 => uint //
+    uint64_value: 4 => uint .size 8 //
+    bool_value: 5 => bool //
+    float_value: 6 => float32 //
+    double_value: 7 => float64 //
+    simple_types_value: 8 => Simple_Types
+  ),
+}

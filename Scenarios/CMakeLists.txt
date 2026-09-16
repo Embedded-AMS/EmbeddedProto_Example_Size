@@ -36,7 +36,7 @@ if(NOT LIBRARY OR NOT SCENARIO)
 endif()
 
 # Define valid library options
-set(VALID_LIBRARIES "ArduinoJson" "EmbeddedProto" "NanoPB" "FlatBuffers" "Baseline")
+set(VALID_LIBRARIES "ArduinoJson" "EmbeddedProto" "NanoPB" "FlatBuffers" "Zcbor" "Baseline")
 
 # Validate LIBRARY parameter
 list(FIND VALID_LIBRARIES ${LIBRARY} LIBRARY_INDEX)
@@ -69,6 +69,9 @@ elseif(LIBRARY STREQUAL "NanoPB")
     target_link_libraries(scenario_lib PUBLIC generated_code)
 elseif(LIBRARY STREQUAL "FlatBuffers")
     # Link against the flatcc runtime, the generated headers come with it
+    target_link_libraries(scenario_lib PUBLIC generated_code)
+elseif(LIBRARY STREQUAL "Zcbor")
+    # Link against the generated zcbor code and the zcbor runtime
     target_link_libraries(scenario_lib PUBLIC generated_code)
 endif()
 

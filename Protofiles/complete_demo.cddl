@@ -1,0 +1,170 @@
+ ;
+ ;  Copyright (C) 2020-2026 Embedded AMS B.V. - All Rights Reserved
+ ;
+ ;  This file is part of Embedded Proto.
+ ;
+ ;  Embedded Proto is open source software: you can redistribute it and/or 
+ ;  modify it under the terms of the GNU General Public License as published 
+ ;  by the Free Software Foundation, version 3 of the license.
+ ;
+ ;  Embedded Proto  is distributed in the hope that it will be useful,
+ ;  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ ;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ ;  GNU General Public License for more details.
+ ;
+ ;  You should have received a copy of the GNU General Public License
+ ;  along with Embedded Proto. If not, see <https://www.gnu.org/licenses/>.
+ ;
+ ;  For commercial and closed source application please visit:
+ ;  <https://embeddedproto.com/pricing/>.
+ ;
+ ;  Embedded AMS B.V.
+ ;  Info:
+ ;    info at EmbeddedProto dot com
+ ;
+ ;  Postal address:
+ ;    Atoomweg 2
+ ;    1627 LE, Hoorn
+ ;    the Netherlands
+ ;/
+
+; CDDL counterpart of complete_demo.proto for zcbor. Nested messages carry their
+; parent's name as a prefix, every oneof is a choice of map entries.
+
+Config_GPIO = {
+  ? pin: 1 => uint,
+  ? mode: 2 => int,
+}
+
+Config_UART = {
+  ? id: 1 => uint,
+  ? baud: 2 => uint,
+  ? data_bits: 3 => uint,
+  ? stop_bits: 4 => uint,
+  ? parity_enable: 5 => bool,
+  ? parity_even: 6 => bool,
+  ? flow_control: 7 => bool,
+}
+
+Config_I2C = {
+  ? id: 1 => uint,
+  ? clock_speed: 2 => uint,
+  ? pullup_enable: 3 => bool,
+  ? timeout: 4 => uint,
+  ? general_call_enable: 5 => bool,
+}
+
+Config_SPI = {
+  ? id: 1 => uint,
+  ? baud_rate_prescaler: 2 => uint,
+  ? clock_polarity: 3 => bool,
+  ? clock_phase: 4 => bool,
+  ? msb_first: 5 => bool,
+  ? software_slave_management: 6 => bool,
+  ? internal_slave_select: 7 => bool,
+}
+
+Config_Motor = {
+  ? spi_id: 1 => uint,
+  ? enabled: 2 => bool,
+  ? enable_micro_stepping: 3 => bool,
+  ? home_direction_inverted: 4 => bool,
+  ? home_switch_pin: 5 => uint,
+}
+
+Config_Encoder = {
+  ? gpio_pin_a: 1 => uint,
+  ? gpio_pin_b: 2 => uint,
+  ? inverted: 3 => bool,
+}
+
+Config = {
+  ? peripheral: (
+    gpio: 10 => Config_GPIO //
+    uart: 11 => Config_UART //
+    i2c: 12 => Config_I2C //
+    spi: 13 => Config_SPI
+  ),
+  ? device: (
+    motor: 20 => Config_Motor //
+    encoder: 21 => Config_Encoder
+  ),
+}
+
+Command_GPIO = {
+  ? set_value: 1 => bool,
+  ? toggle: 2 => bool,
+  ? pulse_duration_ms: 3 => uint,
+}
+
+Command_Motor = {
+  ? target_position: 1 => int,
+  ? target_speed: 2 => uint,
+  ? enable: 3 => bool,
+  ? home: 4 => bool,
+  ? emergency_stop: 5 => bool,
+  ? clear_fault: 6 => bool,
+  ? acceleration: 7 => uint,
+  ? deceleration: 8 => uint,
+}
+
+Command = {
+  ? command_id: 1 => uint,
+  ? command: (
+    gpio: 2 => Command_GPIO //
+    motor: 3 => Command_Motor
+  ),
+}
+
+State_GPIO = {
+  ? value: 1 => bool,
+  ? last_change_timestamp: 2 => uint .size 8,
+}
+
+State_Motor = {
+  ? position: 1 => int,
+  ? target_position: 2 => int,
+  ? speed: 3 => uint,
+  ? is_moving: 4 => bool,
+  ? is_homed: 5 => bool,
+  ? fault_detected: 6 => bool,
+  ? current: 7 => uint,
+}
+
+State_Encoder = {
+  ? position: 1 => int,
+  ? velocity: 2 => int,
+  ? direction: 3 => bool,
+  ? last_pulse_timestamp: 4 => uint .size 8,
+  ? pulses_per_revolution: 5 => uint,
+}
+
+State = {
+  ? timestamp: 1 => uint .size 8,
+  ? state: (
+    gpio: 2 => State_GPIO //
+    motor: 3 => State_Motor //
+    encoder: 4 => State_Encoder
+  ),
+}
+
+States = {
+  ? states: 1 => [0*5 State],
+}
+
+Measurement = {
+  ? data: 1 => [0*25 float32],
+  ? timestamps: 2 => [0*25 uint .size 8],  ; not "time", a prelude type name
+}
+
+EnvelopToMCU = {
+  ? configuration: 1 => [0*5 Config],
+  ? command: 2 => Command,
+}
+
+EnvelopFromMCU = {
+  ? data: (
+    states: 1 => States //
+    measurement: 2 => Measurement
+  ),
+}

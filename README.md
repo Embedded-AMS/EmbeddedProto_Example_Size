@@ -21,6 +21,18 @@ unwinder and RTTI into every C++ build, about 4.5 kB that nanopb (plain C) never
   nanopb that is `sizeof()` of the message. ArduinoJson keeps its data on the heap, so its
   documents use a counting allocator and report the peak heap use plus `sizeof()`.
 
+# Libraries
+- Embedded Proto (`External/EmbeddedProto`), header only C++.
+- nanopb (`External/Nanopb`), C, built with `PB_NO_ERRMSG`.
+- FlatBuffers through flatcc (`External/flatcc`), the C implementation. Its compiler is built
+  for the host once into `build/flatcc-host`, its runtime (builder, emitter, verifier, no JSON)
+  is compiled for the target. The builder allocates its stacks and pages from the heap, which
+  goes through a counting allocator so the RAM of a build is reported as the message size.
+- zcbor (`External/zcbor`), Nordic's CBOR library, C code generated from CDDL schemas. The
+  generator is installed from the submodule into `External/zcbor/venv` on first use. The
+  schemas keep protobuf's numbered, optional fields as map entries keyed by field number.
+- ArduinoJson (`External/ArduinoJson`), JSON, not protobuf, the alternative people consider.
+
 # Per library options
 The `.proto` files are shared by all libraries. Options which are specific to one library live
 next to them in `Protofiles/`:
@@ -29,6 +41,7 @@ next to them in `Protofiles/`:
 - `<name>.options.json` for Embedded Proto (`maxLength`, `callbackStorage`), passed to the
   generator as `--eams_opt=options_file=...`
 - `<name>.fbs` for FlatBuffers, a hand written schema equivalent to the `.proto`
+- `<name>.cddl` for zcbor, the same, all generated together into `Generated/cbor_messages_*`
 
 # Building the code
 1. Clean previous build results: `rm -rf build/`

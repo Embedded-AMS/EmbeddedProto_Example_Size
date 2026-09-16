@@ -30,12 +30,13 @@ except ImportError:
           "Install with 'pip install tabulate' for better output.")
 
 # Valid library choices
-VALID_LIBRARIES = ['ArduinoJson', 'EmbeddedProto', 'NanoPB', 'FlatBuffers', 'Baseline']
+VALID_LIBRARIES = ['ArduinoJson', 'EmbeddedProto', 'NanoPB', 'FlatBuffers', 'Zcbor', 'Baseline']
 
 # Library name mapping for External directory
 LIBRARY_TO_EXTERNAL_DIR = {
     'NanoPB': 'Nanopb',
     'FlatBuffers': 'flatcc',
+    'Zcbor': 'zcbor',
     'EmbeddedProto': 'EmbeddedProto',
     'ArduinoJson': 'ArduinoJson',
     'Baseline': None  # Baseline has no external library

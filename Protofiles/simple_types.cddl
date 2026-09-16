@@ -1,0 +1,51 @@
+ ;
+ ;  Copyright (C) 2020-2026 Embedded AMS B.V. - All Rights Reserved
+ ;
+ ;  This file is part of Embedded Proto.
+ ;
+ ;  Embedded Proto is open source software: you can redistribute it and/or 
+ ;  modify it under the terms of the GNU General Public License as published 
+ ;  by the Free Software Foundation, version 3 of the license.
+ ;
+ ;  Embedded Proto  is distributed in the hope that it will be useful,
+ ;  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ ;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ ;  GNU General Public License for more details.
+ ;
+ ;  You should have received a copy of the GNU General Public License
+ ;  along with Embedded Proto. If not, see <https://www.gnu.org/licenses/>.
+ ;
+ ;  For commercial and closed source application please visit:
+ ;  <https://embeddedproto.com/pricing/>.
+ ;
+ ;  Embedded AMS B.V.
+ ;  Info:
+ ;    info at EmbeddedProto dot com
+ ;
+ ;  Postal address:
+ ;    Atoomweg 2
+ ;    1627 LE, Hoorn
+ ;    the Netherlands
+ ;/
+
+; CDDL counterpart of simple_types.proto for zcbor. Every field is an optional map entry
+; keyed by its protobuf field number, so the wire carries the same information as
+; protobuf: numbered, optional fields. Enums are integers.
+
+Simple_Types = {
+  ? a_int32: 1 => int,
+  ? a_int64: 2 => int .size 8,
+  ? a_uint32: 3 => uint,
+  ? a_uint64: 4 => uint .size 8,
+  ? a_sint32: 5 => int,
+  ? a_sint64: 6 => int .size 8,
+  ? a_bool: 7 => bool,
+  ? a_enum: 8 => int,
+  ? a_fixed64: 9 => uint .size 8,
+  ? a_sfixed64: 10 => int .size 8,
+  ? a_double: 11 => float64,
+  ? a_fixed32: 12 => uint,
+  ? a_sfixed32: 13 => int,
+  ? a_float: 14 => float32,
+  ? a_nested_enum: 15 => int,
+}
