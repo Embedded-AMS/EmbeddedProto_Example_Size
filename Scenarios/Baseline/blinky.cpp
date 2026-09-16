@@ -41,4 +41,6 @@
 uint32_t run_scenario()
 {
     HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    // Nothing is serialized, the baseline is exempt from the zero-means-failure rule.
+    return 0;
 }

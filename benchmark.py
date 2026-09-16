@@ -665,6 +665,19 @@ def extract_static_sizes(elf_path: str) -> StaticSizes:
         except (ValueError, IndexError) as e:
             raise ValueError(f"Could not parse size values from arm-none-eabi-size output: {result.stdout}") from e
 
+        # The linker script reserves the heap and stack in a ._user_heap_stack section which
+        # the berkeley format counts as bss. It is a constant, not memory the library uses.
+        sections = subprocess.run(
+            ['arm-none-eabi-size', '-A', elf_path],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        for line in sections.stdout.split('\n'):
+            parts = line.split()
+            if len(parts) >= 2 and parts[0] == '._user_heap_stack':
+                bss_size -= int(parts[1])
+
         return StaticSizes(
             text_bytes=text_size,
             data_bytes=data_size,
@@ -1342,6 +1355,12 @@ def create_benchmark_result(
     # Get optimization flags for the build type by parsing CMakeLists.txt
     optimization_flags = get_optimization_flags(build_type)
 
+    # A scenario returns 0 bytes when a round trip failed, see Scenarios/scenario.h. Such a run
+    # has a flash size and a cycle count, but neither means anything, so it is not stored.
+    # The baseline serializes nothing and is exempt.
+    if (library != 'Baseline') and (dynamic_metrics.cpu_cycles is not None) and (dynamic_metrics.n_bytes_in_buffer == 0):
+        raise RuntimeError(f"{library}/{scenario} reported failure (0 bytes serialized), result not stored")
+
     return BenchmarkResult(
         library=library,
         scenario=scenario,
@@ -1793,7 +1812,7 @@ def main() -> None:
                     library=args.library,
                     scenario=args.scenario,
                     static_sizes=static_sizes,
-                    dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
+                    dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None),
                     git_info=git_info,
                     build_type=build_type,
                     benchmark_mode=benchmark_mode
@@ -1876,7 +1895,7 @@ def main() -> None:
                         library=args.library,
                         scenario=scenario,
                         static_sizes=static_sizes,
-                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
+                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None),
                         git_info=git_info,
                         build_type=build_type,
                         benchmark_mode=benchmark_mode
@@ -1969,7 +1988,7 @@ def main() -> None:
                         library=lib,
                         scenario=args.scenario,
                         static_sizes=static_sizes,
-                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
+                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None),
                         git_info=git_info,
                         build_type=build_type,
                         benchmark_mode=benchmark_mode
@@ -2055,7 +2074,7 @@ def main() -> None:
                         library=lib,
                         scenario=scenario,
                         static_sizes=static_sizes,
-                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None),
+                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None),
                         git_info=git_info,
                         build_type=build_type,
                         benchmark_mode=benchmark_mode
