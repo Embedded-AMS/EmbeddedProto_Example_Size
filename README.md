@@ -24,7 +24,8 @@ unwinder and RTTI into every C++ build, about 4.5 kB that nanopb (plain C) never
 # Per library options
 The `.proto` files are shared by all libraries. Options which are specific to one library live
 next to them in `Protofiles/`:
-- `<name>.options` for nanopb (`max_count`, `max_size`, `FT_CALLBACK`)
+- `<name>.options` for nanopb (`max_count`, `max_size`, `FT_CALLBACK`); nanopb is built with
+  `PB_NO_ERRMSG`, the one size option its documentation recommends for a small target
 - `<name>.options.json` for Embedded Proto (`maxLength`, `callbackStorage`), passed to the
   generator as `--eams_opt=options_file=...`
 

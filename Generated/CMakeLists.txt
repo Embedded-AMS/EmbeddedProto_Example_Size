@@ -175,6 +175,11 @@ elseif(LIBRARY STREQUAL "NanoPB")
         target_include_directories(generated_code PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
         target_include_directories(generated_code PUBLIC ${NANOPB_DIR})
 
+        # Leave out nanopb's error strings, as its documentation recommends for a small
+        # target; Embedded Proto has none either. PB_NO_ERRMSG changes the stream structs,
+        # so it must reach every file which includes a nanopb header, hence PUBLIC.
+        target_compile_definitions(generated_code PUBLIC PB_NO_ERRMSG)
+
         # Add NanoPB runtime source files
         set(NANOPB_RUNTIME_SOURCES
             "${NANOPB_DIR}/pb_common.c"
