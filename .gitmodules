@@ -10,3 +10,6 @@
 [submodule "flatcc"]
 	path = External/flatcc
 	url = https://github.com/dvidelabs/flatcc.git
+[submodule "zcbor"]
+	path = External/zcbor
+	url = https://github.com/NordicSemiconductor/zcbor.git
