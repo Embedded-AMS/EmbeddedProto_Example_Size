@@ -1,0 +1,94 @@
+/*
+ *  Copyright (C) 2020-2026 Embedded AMS B.V. - All Rights Reserved
+ *
+ *  This file is part of Embedded Proto.
+ *
+ *  Embedded Proto is open source software: you can redistribute it and/or 
+ *  modify it under the terms of the GNU General Public License as published 
+ *  by the Free Software Foundation, version 3 of the license.
+ *
+ *  Embedded Proto  is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Embedded Proto. If not, see <https://www.gnu.org/licenses/>.
+ *
+ *  For commercial and closed source application please visit:
+ *  <https://embeddedproto.com/pricing/>.
+ *
+ *  Embedded AMS B.V.
+ *  Info:
+ *    info at EmbeddedProto dot com
+ *
+ *  Postal address:
+ *    Atoomweg 2
+ *    1627 LE, Hoorn
+ *    the Netherlands
+ */
+
+// FlatBuffers counterpart of complete_demo.proto. FlatBuffers has no nested types, so the
+// nested messages carry their parent's name as a prefix, and every protobuf oneof is a union.
+
+enum Config_GPIO_MODE : int { GPIO_MODE_UNKNOWN = 0, INPUT = 1, OUTPUT_PP = 2, OUTPUT_OD = 3 }
+
+table Config_GPIO { pin:uint; mode:Config_GPIO_MODE; }
+table Config_UART { id:uint; baud:uint; data_bits:uint; stop_bits:uint; parity_enable:bool; parity_even:bool; flow_control:bool; }
+table Config_I2C { id:uint; clock_speed:uint; pullup_enable:bool; timeout:uint; general_call_enable:bool; }
+table Config_SPI { id:uint; baud_rate_prescaler:uint; clock_polarity:bool; clock_phase:bool; msb_first:bool; software_slave_management:bool; internal_slave_select:bool; }
+table Config_Motor { spi_id:uint; enabled:bool; enable_micro_stepping:bool; home_direction_inverted:bool; home_switch_pin:uint; }
+table Config_Encoder { gpio_pin_a:uint; gpio_pin_b:uint; inverted:bool; }
+
+union Config_Peripheral { Config_GPIO, Config_UART, Config_I2C, Config_SPI }
+union Config_Device { Config_Motor, Config_Encoder }
+
+table Config
+{
+  peripheral:Config_Peripheral;
+  device:Config_Device;
+}
+
+table Command_GPIO { set_value:bool; toggle:bool; pulse_duration_ms:uint; }
+table Command_Motor { target_position:int; target_speed:uint; enable:bool; home:bool; emergency_stop:bool; clear_fault:bool; acceleration:uint; deceleration:uint; }
+
+union Command_Command { Command_GPIO, Command_Motor }
+
+table Command
+{
+  command_id:uint;
+  command:Command_Command;
+}
+
+table State_GPIO { value:bool; last_change_timestamp:ulong; }
+table State_Motor { position:int; target_position:int; speed:uint; is_moving:bool; is_homed:bool; fault_detected:bool; current:uint; }
+table State_Encoder { position:int; velocity:int; direction:bool; last_pulse_timestamp:ulong; pulses_per_revolution:uint; }
+
+union State_State { State_GPIO, State_Motor, State_Encoder }
+
+table State
+{
+  timestamp:ulong;
+  state:State_State;
+}
+
+table States { states:[State]; }
+
+table Measurement
+{
+  data:[float];
+  time:[ulong];
+}
+
+table EnvelopToMCU
+{
+  configuration:[Config];
+  command:Command;
+}
+
+union EnvelopFromMCU_Data { States, Measurement }
+
+table EnvelopFromMCU
+{
+  data:EnvelopFromMCU_Data;
+}
