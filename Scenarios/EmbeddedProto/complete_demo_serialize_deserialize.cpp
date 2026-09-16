@@ -54,9 +54,6 @@ uint32_t run_scenario()
         return 0; // Serialization failed
     }
 
-    // Step 3: Clear the EnvelopToMCU message
-    envelop_to_mcu.clear();
-
     // Step 4: Deserialize the buffer to EnvelopToMCU
     const uint32_t buffer_size = write_buffer.get_size();
     read_buffer.clear();
@@ -83,9 +80,6 @@ uint32_t run_scenario()
         return 0; // Serialization failed
     }
 
-    // Step 7: Clear EnvelopToMCU message
-    envelop_to_mcu_deserialized.clear();
-
     // Step 8: Deserialize the buffer into EnvelopToMCU
     const uint32_t command_buffer_size = write_buffer.get_size();
     read_buffer.clear();
@@ -101,43 +95,11 @@ uint32_t run_scenario()
         return 0; // Deserialization failed
     }
 
-    // Step 9: Loop over the different state types and set state data in EnvelopFromMCU
-    // Use 5 states as requested
+    // Step 9: Fill EnvelopFromMCU with the states and serialize it
     EnvelopFromMCU<5, 25, 25> envelop_from_mcu_states;
-
     report_message_size(sizeof(envelop_from_mcu_states));
-    // Set up different state types in the States message
-    States<5>& states_msg = envelop_from_mcu_states.mutable_states();
+    HelperCompleteDemo::set_envelop_from_mcu_with_states_demo(envelop_from_mcu_states);
 
-    // Set GPIO state at index 0
-    HelperCompleteDemoState::set_state_with_gpio_demo(states_msg.mutable_states(0));
-
-    // Set Motor state at index 1
-    HelperCompleteDemoState::set_state_with_motor_demo(states_msg.mutable_states(1));
-
-    // Set Encoder state at index 2
-    HelperCompleteDemoState::set_state_with_encoder_demo(states_msg.mutable_states(2));
-
-    // Set another GPIO state at index 3 (different values)
-    State::GPIO gpio_state_2;
-    gpio_state_2.set_value(false);
-    gpio_state_2.set_last_change_timestamp(987654321);
-    states_msg.mutable_states(3).set_gpio(gpio_state_2);
-    states_msg.mutable_states(3).set_timestamp(4000000);
-
-    // Set another Motor state at index 4 (different values)
-    State::Motor motor_state_2;
-    motor_state_2.set_position(2500);
-    motor_state_2.set_target_position(3000);
-    motor_state_2.set_speed(750);
-    motor_state_2.set_is_moving(false);
-    motor_state_2.set_is_homed(true);
-    motor_state_2.set_fault_detected(true);
-    motor_state_2.set_current(2000);
-    states_msg.mutable_states(4).set_motor(motor_state_2);
-    states_msg.mutable_states(4).set_timestamp(5000000);
-
-    // Serialize the states to a buffer
     write_buffer.clear();
     const auto serialize_states_result = HelperSerializeMode::serialize_message(envelop_from_mcu_states, write_buffer);
     if (serialize_states_result != EmbeddedProto::Error::NO_ERRORS)
@@ -145,25 +107,24 @@ uint32_t run_scenario()
         return 0; // Serialization failed
     }
 
-    // Step 10: Set the measurement data in EnvelopFromMCU (25 measurements and timestamps)
-    EnvelopFromMCU<5, 25, 25> envelop_from_mcu_measurement;
+    // Step 10: Deserialize the states and check every value
+    const uint32_t states_size = write_buffer.get_size();
+    read_buffer.clear();
+    memcpy(read_buffer.get_data(), write_buffer.get_data(), states_size);
+    read_buffer.set_bytes_written(states_size);
 
-    report_message_size(sizeof(envelop_from_mcu_measurement));
-    // Set measurement data using helper function
-    Measurement<25, 25>& measurement_msg = envelop_from_mcu_measurement.mutable_measurement();
-
-    // Clear any existing data first
-    measurement_msg.clear_data();
-    measurement_msg.clear_time();
-
-    // Set 25 measurement data points and timestamps
-    for(uint32_t i = 0; i < 25; ++i)
+    EnvelopFromMCU<5, 25, 25> envelop_from_mcu_states_deserialized;
+    const auto deserialize_states_result = envelop_from_mcu_states_deserialized.deserialize(read_buffer);
+    if ((deserialize_states_result != EmbeddedProto::Error::NO_ERRORS)
+        || !HelperCompleteDemo::compare_envelop_from_mcu_states_demo(envelop_from_mcu_states_deserialized))
     {
-        measurement_msg.set_data(i, 1.23f * i + 0.5f); // Different pattern than helper
-        measurement_msg.set_time(i, 50 * i + 100);     // Different pattern than helper
+        return 0; // Deserialization failed
     }
 
-    // Step 11: Serialize the measurement data
+    // Step 11: Fill EnvelopFromMCU with the measurement (25 data points and timestamps) and serialize it
+    EnvelopFromMCU<5, 25, 25> envelop_from_mcu_measurement;
+    HelperCompleteDemo::set_envelop_from_mcu_with_measurement_demo(envelop_from_mcu_measurement);
+
     write_buffer.clear();
     const auto serialize_measurement_result = HelperSerializeMode::serialize_message(envelop_from_mcu_measurement, write_buffer);
     if (serialize_measurement_result != EmbeddedProto::Error::NO_ERRORS)
@@ -171,37 +132,20 @@ uint32_t run_scenario()
         return 0; // Serialization failed
     }
 
-    // Return the total buffer size used for all serializations as success indicator
-    // Use the largest buffer size among all serializations
-    uint32_t total_buffer_size = write_buffer.get_size();
-
-    // Additional verification: test deserialization of states and measurement
-    EnvelopFromMCU<5, 25, 25> test_envelop;
-
-    report_message_size(sizeof(test_envelop));
-    // Test states deserialization
-    const uint32_t states_size = write_buffer.get_size();
+    // Step 12: Deserialize the measurement and check every value
+    const uint32_t measurement_size = write_buffer.get_size();
     read_buffer.clear();
-    memcpy(read_buffer.get_data(), write_buffer.get_data(), states_size);
-    read_buffer.set_bytes_written(states_size);
+    memcpy(read_buffer.get_data(), write_buffer.get_data(), measurement_size);
+    read_buffer.set_bytes_written(measurement_size);
 
-    EnvelopFromMCU<5, 25, 25> test_states_envelop;
-
-    report_message_size(sizeof(test_states_envelop));
-    const auto test_states_result = test_states_envelop.deserialize(read_buffer);
-
-    // Test measurement deserialization
-    const auto test_measurement_result = test_envelop.deserialize(read_buffer);
-
-    // Return success if all operations completed successfully
-    if (serialize_config_result == EmbeddedProto::Error::NO_ERRORS &&
-        deserialize_config_result == EmbeddedProto::Error::NO_ERRORS &&
-        serialize_command_result == EmbeddedProto::Error::NO_ERRORS &&
-        deserialize_command_result == EmbeddedProto::Error::NO_ERRORS &&
-        serialize_states_result == EmbeddedProto::Error::NO_ERRORS &&
-        serialize_measurement_result == EmbeddedProto::Error::NO_ERRORS) {
-        return total_buffer_size;
+    EnvelopFromMCU<5, 25, 25> envelop_from_mcu_measurement_deserialized;
+    const auto deserialize_measurement_result = envelop_from_mcu_measurement_deserialized.deserialize(read_buffer);
+    if ((deserialize_measurement_result != EmbeddedProto::Error::NO_ERRORS)
+        || !HelperCompleteDemo::compare_envelop_from_mcu_measurement_demo(envelop_from_mcu_measurement_deserialized))
+    {
+        return 0; // Deserialization failed
     }
 
-    return 0; // Return 0 if any operation failed
+    // Every round trip succeeded and was checked, report the size of the largest message
+    return measurement_size;
 }

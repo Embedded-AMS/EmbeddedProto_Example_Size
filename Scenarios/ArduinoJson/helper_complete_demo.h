@@ -285,7 +285,11 @@ bool compare_measurement_demo(JsonObjectConst measurement_obj, uint32_t data_cou
         float expected_data = 1.23f * i;
         uint64_t expected_time = 100 * i;
 
-        if (static_cast<float>(data_array[i]) != expected_data)
+        // JSON prints a float with six significant digits, so the value comes back
+        // with a relative error of up to 1e-6. Protobuf carries the exact 32 bits.
+        const float actual_data = static_cast<float>(data_array[i]);
+        const float difference = (actual_data > expected_data) ? (actual_data - expected_data) : (expected_data - actual_data);
+        if (difference > (expected_data * 1e-5f))
             return false;
         if (static_cast<uint64_t>(time_array[i]) != expected_time)
             return false;

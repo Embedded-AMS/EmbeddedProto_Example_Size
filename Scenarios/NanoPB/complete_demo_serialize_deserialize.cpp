@@ -54,9 +54,6 @@ uint32_t run_scenario()
         return 0; // Serialization failed
     }
 
-    // Step 3: Clear the EnvelopToMCU message
-    envelop_to_mcu = EnvelopToMCU_init_default;
-
     // Step 4: Deserialize the buffer to EnvelopToMCU
     const uint32_t buffer_size = stream.bytes_written;
     memcpy(read_buffer, write_buffer, buffer_size);
@@ -82,9 +79,6 @@ uint32_t run_scenario()
         return 0; // Serialization failed
     }
 
-    // Step 7: Clear EnvelopToMCU message
-    envelop_to_mcu_deserialized = EnvelopToMCU_init_default;
-
     // Step 8: Deserialize the buffer into EnvelopToMCU
     const uint32_t command_buffer_size = stream.bytes_written;
     memcpy(read_buffer, write_buffer, command_buffer_size);
@@ -99,111 +93,51 @@ uint32_t run_scenario()
         return 0; // Deserialization failed
     }
 
-    // Step 9: Loop over the different state types and set state data in EnvelopFromMCU
-    // Use 5 states as requested - matching EmbeddedProto scenario exactly
+    // Step 9: Fill EnvelopFromMCU with the states and serialize it
     EnvelopFromMCU envelop_from_mcu_states = EnvelopFromMCU_init_default;
     report_message_size(sizeof(envelop_from_mcu_states));
-    envelop_from_mcu_states.which_data = EnvelopFromMCU_states_tag;
-    
-    // Set up different state types in the States message
-    States& states_msg = envelop_from_mcu_states.data.states;
-    states_msg.states_count = 5;
+    HelperCompleteDemoNanoPB::set_envelop_from_mcu_with_states_demo(envelop_from_mcu_states);
 
-    // Set GPIO state at index 0
-    HelperCompleteDemoStateNanoPB::set_state_with_gpio_demo(states_msg.states[0]);
-
-    // Set Motor state at index 1
-    HelperCompleteDemoStateNanoPB::set_state_with_motor_demo(states_msg.states[1]);
-
-    // Set Encoder state at index 2
-    HelperCompleteDemoStateNanoPB::set_state_with_encoder_demo(states_msg.states[2]);
-
-    // Set another GPIO state at index 3 (different values - matching EmbeddedProto)
-    State_GPIO gpio_state_2 = State_GPIO_init_default;
-    gpio_state_2.value = false;
-    gpio_state_2.last_change_timestamp = 987654321;
-    states_msg.states[3].state.gpio = gpio_state_2;
-    states_msg.states[3].which_state = State_gpio_tag;
-    states_msg.states[3].timestamp = 4000000;
-
-    // Set another Motor state at index 4 (different values - matching EmbeddedProto)
-    State_Motor motor_state_2 = State_Motor_init_default;
-    motor_state_2.position = 2500;
-    motor_state_2.target_position = 3000;
-    motor_state_2.speed = 750;
-    motor_state_2.is_moving = false;
-    motor_state_2.is_homed = true;
-    motor_state_2.fault_detected = true;
-    motor_state_2.current = 2000;
-    states_msg.states[4].state.motor = motor_state_2;
-    states_msg.states[4].which_state = State_motor_tag;
-    states_msg.states[4].timestamp = 5000000;
-
-    // Serialize the states to a buffer
     stream = pb_ostream_from_buffer(write_buffer, sizeof(write_buffer));
-    bool serialize_states_result = pb_encode(&stream, EnvelopFromMCU_fields, &envelop_from_mcu_states);
-    if (!serialize_states_result)
+    if (!pb_encode(&stream, EnvelopFromMCU_fields, &envelop_from_mcu_states))
     {
         return 0; // Serialization failed
     }
 
-    // Step 10: Set the measurement data in EnvelopFromMCU (25 measurements and timestamps)
-    // Matching EmbeddedProto scenario exactly
-    EnvelopFromMCU envelop_from_mcu_measurement = EnvelopFromMCU_init_default;
-    report_message_size(sizeof(envelop_from_mcu_measurement));
-    envelop_from_mcu_measurement.which_data = EnvelopFromMCU_measurement_tag;
-    
-    // Set measurement data using same pattern as EmbeddedProto
-    Measurement& measurement_msg = envelop_from_mcu_measurement.data.measurement;
-    measurement_msg.data_count = 25;
-    measurement_msg.time_count = 25;
-
-    // Set 25 measurement data points and timestamps - matching EmbeddedProto pattern
-    for(uint32_t i = 0; i < 25; ++i)
-    {
-        measurement_msg.data[i] = 1.23f * i + 0.5f; // Same pattern as EmbeddedProto
-        measurement_msg.time[i] = 50 * i + 100;     // Same pattern as EmbeddedProto
-    }
-
-    // Step 11: Serialize the measurement data
-    stream = pb_ostream_from_buffer(write_buffer, sizeof(write_buffer));
-    bool serialize_measurement_result = pb_encode(&stream, EnvelopFromMCU_fields, &envelop_from_mcu_measurement);
-    if (!serialize_measurement_result)
-    {
-        return 0; // Serialization failed
-    }
-
-    // Return the total buffer size used for all serializations as success indicator
-    // Use the largest buffer size among all serializations
-    uint32_t total_buffer_size = stream.bytes_written;
-
-    // Additional verification: test deserialization of states and measurement
-    EnvelopFromMCU test_envelop = EnvelopFromMCU_init_default;
-
-    report_message_size(sizeof(test_envelop));
-    // Test states deserialization
+    // Step 10: Deserialize the states and check every value
     const uint32_t states_size = stream.bytes_written;
     memcpy(read_buffer, write_buffer, states_size);
 
-    EnvelopFromMCU test_states_envelop = EnvelopFromMCU_init_default;
-
-    report_message_size(sizeof(test_states_envelop));
+    EnvelopFromMCU envelop_from_mcu_states_deserialized = EnvelopFromMCU_init_default;
     istream = pb_istream_from_buffer(read_buffer, states_size);
-    bool test_states_result = pb_decode(&istream, EnvelopFromMCU_fields, &test_states_envelop);
-
-    // Test measurement deserialization
-    istream = pb_istream_from_buffer(read_buffer, states_size);
-    bool test_measurement_result = pb_decode(&istream, EnvelopFromMCU_fields, &test_envelop);
-
-    // Return success if all operations completed successfully
-    if (serialize_config_result &&
-        deserialize_config_result &&
-        serialize_command_result &&
-        deserialize_command_result &&
-        serialize_states_result &&
-        serialize_measurement_result) {
-        return total_buffer_size;
+    if (!pb_decode(&istream, EnvelopFromMCU_fields, &envelop_from_mcu_states_deserialized)
+        || !HelperCompleteDemoNanoPB::compare_envelop_from_mcu_states_demo(envelop_from_mcu_states_deserialized))
+    {
+        return 0; // Deserialization failed
     }
 
-    return 0; // Return 0 if any operation failed
+    // Step 11: Fill EnvelopFromMCU with the measurement (25 data points and timestamps) and serialize it
+    EnvelopFromMCU envelop_from_mcu_measurement = EnvelopFromMCU_init_default;
+    HelperCompleteDemoNanoPB::set_envelop_from_mcu_with_measurement_demo(envelop_from_mcu_measurement);
+
+    stream = pb_ostream_from_buffer(write_buffer, sizeof(write_buffer));
+    if (!pb_encode(&stream, EnvelopFromMCU_fields, &envelop_from_mcu_measurement))
+    {
+        return 0; // Serialization failed
+    }
+
+    // Step 12: Deserialize the measurement and check every value
+    const uint32_t measurement_size = stream.bytes_written;
+    memcpy(read_buffer, write_buffer, measurement_size);
+
+    EnvelopFromMCU envelop_from_mcu_measurement_deserialized = EnvelopFromMCU_init_default;
+    istream = pb_istream_from_buffer(read_buffer, measurement_size);
+    if (!pb_decode(&istream, EnvelopFromMCU_fields, &envelop_from_mcu_measurement_deserialized)
+        || !HelperCompleteDemoNanoPB::compare_envelop_from_mcu_measurement_demo(envelop_from_mcu_measurement_deserialized))
+    {
+        return 0; // Deserialization failed
+    }
+
+    // Every round trip succeeded and was checked, report the size of the largest message
+    return measurement_size;
 }

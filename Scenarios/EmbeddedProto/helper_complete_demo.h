@@ -351,20 +351,15 @@ void set_envelop_from_mcu_measurement_average(EnvelopFromMCU<
 template<uint32_t States_states_REP_LENGTH>
 bool compare_states_demo(const States<States_states_REP_LENGTH>& states_msg)
 {
-    if (states_msg.get_states_size() != 3)
+    // Every state is a GPIO state, as set_states_demo() fills them.
+    if (states_msg.get_states().get_length() != States_states_REP_LENGTH)
         return false;
 
-    // Check GPIO state (index 0)
-    if (!HelperCompleteDemoState::compare_gpio_state_demo(states_msg.get_states(0).get_gpio()))
-        return false;
-
-    // Check Motor state (index 1)
-    if (!HelperCompleteDemoState::compare_motor_state_demo(states_msg.get_states(1).get_motor()))
-        return false;
-
-    // Check Encoder state (index 2)
-    if (!HelperCompleteDemoState::compare_encoder_state_demo(states_msg.get_states(2).get_encoder()))
-        return false;
+    for (uint32_t i = 0; i < States_states_REP_LENGTH; ++i)
+    {
+        if (!HelperCompleteDemoState::compare_gpio_state_demo(states_msg.states(i).get_gpio()))
+            return false;
+    }
 
     return true;
 }
@@ -386,15 +381,15 @@ bool compare_measurement_demo(const Measurement<Measurement_data_REP_LENGTH, Mea
 template<uint32_t EnvelopToMCU_configuration_REP_LENGTH>
 bool compare_envelop_to_mcu_demo(const EnvelopToMCU<EnvelopToMCU_configuration_REP_LENGTH>& envelop_msg)
 {
-    if (envelop_msg.get_configuration_size() != EnvelopToMCU_configuration_REP_LENGTH)
+    if (envelop_msg.get_configuration().get_length() != EnvelopToMCU_configuration_REP_LENGTH)
         return false;
 
     // Check GPIO configuration (index 0)
-    if (!HelperCompleteDemoConfig::compare_gpio_config_demo(envelop_msg.get_configuration(0).get_gpio()))
+    if (!HelperCompleteDemoConfig::compare_gpio_config_demo(envelop_msg.configuration(0).get_gpio()))
         return false;
 
     // Check Motor configuration (index 1)
-    if (!HelperCompleteDemoConfig::compare_motor_config_demo(envelop_msg.get_configuration(1).get_motor()))
+    if (!HelperCompleteDemoConfig::compare_motor_config_demo(envelop_msg.configuration(1).get_motor()))
         return false;
 
     // Check Motor command
@@ -417,8 +412,7 @@ bool compare_envelop_from_mcu_states_demo(const EnvelopFromMCU<
     if (!envelop_msg.has_states())
         return false;
 
-    States<EnvelopFromMCU_states_States_states_REP_LENGTH>& states = envelop_msg.get_states();
-    return compare_states_demo(states);
+    return compare_states_demo(envelop_msg.get_states());
 }
 
 template<
@@ -434,9 +428,7 @@ bool compare_envelop_from_mcu_measurement_demo(const EnvelopFromMCU<
     if (!envelop_msg.has_measurement())
         return false;
 
-    Measurement<EnvelopFromMCU_measurement_Measurement_data_REP_LENGTH,
-                EnvelopFromMCU_measurement_Measurement_time_REP_LENGTH>& measurement = envelop_msg.get_measurement();
-    return compare_measurement_demo(measurement);
+    return compare_measurement_demo(envelop_msg.get_measurement());
 }
 
 // Helper functions for working with repeated fields by index

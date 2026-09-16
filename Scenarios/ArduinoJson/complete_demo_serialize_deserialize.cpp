@@ -56,7 +56,6 @@ uint32_t run_scenario()
         return 0; // Serialization failed
     }
 
-    // Step 3: Clear the EnvelopToMCU message (create fresh document)
     JsonDocument doc_envelop_to_mcu_deserialized(&g_json_allocator);
 
     // Step 4: Deserialize the buffer to EnvelopToMCU
@@ -78,7 +77,6 @@ uint32_t run_scenario()
         return 0; // Serialization failed
     }
 
-    // Step 7: Clear EnvelopToMCU message (create fresh document)
     JsonDocument doc_envelop_to_mcu_final(&g_json_allocator);
 
     // Step 8: Deserialize the buffer into EnvelopToMCU
@@ -89,46 +87,10 @@ uint32_t run_scenario()
         return 0; // Deserialization failed
     }
 
-    // Step 9: Loop over the different state types and set state data in EnvelopFromMCU
-    // Use 5 states as requested
+    // Step 9: Fill EnvelopFromMCU with the states and serialize it
     JsonDocument doc_envelop_from_mcu_states(&g_json_allocator);
+    HelperCompleteDemoArduinoJson::set_envelop_from_mcu_with_states_demo(doc_envelop_from_mcu_states, 5);
 
-    // Set up different state types in the States message
-    JsonObject states_obj = doc_envelop_from_mcu_states["states"].to<JsonObject>();
-    JsonArray states_array = states_obj["states"].to<JsonArray>();
-
-    // Set GPIO state at index 0
-    JsonObject state0 = states_array.add<JsonObject>();
-    HelperCompleteDemoStateArduinoJson::set_state_with_gpio_demo(state0);
-
-    // Set Motor state at index 1
-    JsonObject state1 = states_array.add<JsonObject>();
-    HelperCompleteDemoStateArduinoJson::set_state_with_motor_demo(state1);
-
-    // Set Encoder state at index 2
-    JsonObject state2 = states_array.add<JsonObject>();
-    HelperCompleteDemoStateArduinoJson::set_state_with_encoder_demo(state2);
-
-    // Set another GPIO state at index 3 (different values)
-    JsonObject state3 = states_array.add<JsonObject>();
-    JsonObject gpio_state_2 = state3["gpio"].to<JsonObject>();
-    gpio_state_2["value"] = false;
-    gpio_state_2["last_change_timestamp"] = 987654321;
-    state3["timestamp"] = 4000000;
-
-    // Set another Motor state at index 4 (different values)
-    JsonObject state4 = states_array.add<JsonObject>();
-    JsonObject motor_state_2 = state4["motor"].to<JsonObject>();
-    motor_state_2["position"] = 2500;
-    motor_state_2["target_position"] = 3000;
-    motor_state_2["speed"] = 750;
-    motor_state_2["is_moving"] = false;
-    motor_state_2["is_homed"] = true;
-    motor_state_2["fault_detected"] = true;
-    motor_state_2["current"] = 2000;
-    state4["timestamp"] = 5000000;
-
-    // Serialize the states to a buffer
     report_message_size(sizeof(doc_envelop_from_mcu_states) + g_json_allocator.peak_bytes());
     const auto n_bytes_states = serializeJson(doc_envelop_from_mcu_states, buffer, sizeof(buffer));
     if (n_bytes_states == 0)
@@ -136,22 +98,20 @@ uint32_t run_scenario()
         return 0; // Serialization failed
     }
 
-    // Step 10: Set the measurement data in EnvelopFromMCU (25 measurements and timestamps)
-    JsonDocument doc_envelop_from_mcu_measurement(&g_json_allocator);
-
-    // Set measurement data
-    JsonObject measurement_obj = doc_envelop_from_mcu_measurement["measurement"].to<JsonObject>();
-    JsonArray data_array = measurement_obj["data"].to<JsonArray>();
-    JsonArray time_array = measurement_obj["time"].to<JsonArray>();
-
-    // Set 25 measurement data points and timestamps
-    for(uint32_t i = 0; i < 25; ++i)
+    // Step 10: Deserialize the states and check every value
+    memcpy(deserialize_buffer, buffer, n_bytes_states);
+    JsonDocument doc_envelop_from_mcu_states_deserialized(&g_json_allocator);
+    const auto deserialize_states_error = deserializeJson(doc_envelop_from_mcu_states_deserialized, deserialize_buffer, n_bytes_states);
+    if (deserialize_states_error
+        || !HelperCompleteDemoArduinoJson::compare_envelop_from_mcu_states_demo(doc_envelop_from_mcu_states_deserialized, 5))
     {
-        data_array.add(1.23f * i + 0.5f); // Different pattern than helper
-        time_array.add(50 * i + 100);     // Different pattern than helper
+        return 0; // Deserialization failed
     }
 
-    // Step 11: Serialize the measurement data
+    // Step 11: Fill EnvelopFromMCU with the measurement (25 data points and timestamps) and serialize it
+    JsonDocument doc_envelop_from_mcu_measurement(&g_json_allocator);
+    HelperCompleteDemoArduinoJson::set_envelop_from_mcu_with_measurement_demo(doc_envelop_from_mcu_measurement, 25, 25);
+
     report_message_size(sizeof(doc_envelop_from_mcu_measurement) + g_json_allocator.peak_bytes());
     const auto n_bytes_measurement = serializeJson(doc_envelop_from_mcu_measurement, buffer, sizeof(buffer));
     if (n_bytes_measurement == 0)
@@ -159,28 +119,16 @@ uint32_t run_scenario()
         return 0; // Serialization failed
     }
 
-    // Return the total buffer size used for all serializations as success indicator
-    // Use the largest buffer size among all serializations
-    uint32_t total_buffer_size = n_bytes_measurement;
-
-    // Additional verification: test deserialization of states and measurement
-    JsonDocument test_envelop(&g_json_allocator);
-
-    // Test states deserialization
+    // Step 12: Deserialize the measurement and check every value
     memcpy(deserialize_buffer, buffer, n_bytes_measurement);
-    const auto test_measurement_error = deserializeJson(test_envelop, deserialize_buffer, n_bytes_measurement);
-
-    // Return success if all operations completed successfully
-    if (n_bytes_config > 0 &&
-        !deserialize_config_error &&
-        n_bytes_command > 0 &&
-        !deserialize_command_error &&
-        n_bytes_states > 0 &&
-        n_bytes_measurement > 0 &&
-        !test_measurement_error)
+    JsonDocument doc_envelop_from_mcu_measurement_deserialized(&g_json_allocator);
+    const auto deserialize_measurement_error = deserializeJson(doc_envelop_from_mcu_measurement_deserialized, deserialize_buffer, n_bytes_measurement);
+    if (deserialize_measurement_error
+        || !HelperCompleteDemoArduinoJson::compare_envelop_from_mcu_measurement_demo(doc_envelop_from_mcu_measurement_deserialized, 25, 25))
     {
-        return total_buffer_size;
+        return 0; // Deserialization failed
     }
 
-    return 0; // Return 0 if any operation failed
+    // Every round trip succeeded and was checked, report the size of the largest message
+    return static_cast<uint32_t>(n_bytes_measurement);
 }
