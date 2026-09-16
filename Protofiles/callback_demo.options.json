@@ -1,0 +1,8 @@
+{
+  "Sample_Stream": {
+    "samples": { "callbackStorage": true }
+  },
+  "Blob": {
+    "payload": { "callbackStorage": true }
+  }
+}
