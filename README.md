@@ -4,6 +4,20 @@ To compare Embedded Proto to alternatives such as NanoPB and ArduinoJson in term
 Performance in this case is specified as flash, RAM, CPU, and buffer usage.
 ArduinoJson is not a protobuf library but is considered a likely alternative to protobuf, so it is used as a comparison.
 
+# Compiler flags
+All C++ is compiled with `-Os -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti
+-fno-threadsafe-statics -fno-use-cxa-atexit` and linked with `--gc-sections`, the flags an
+embedded IDE sets for a C++ project. Without `-fno-exceptions -fno-rtti` GCC links the exception
+unwinder and RTTI into every C++ build, about 4.5 kB that nanopb (plain C) never pays. See
+`CMakeLists.txt`, the flags are stored with every result in the database.
+
+# Per library options
+The `.proto` files are shared by all libraries. Options which are specific to one library live
+next to them in `Protofiles/`:
+- `<name>.options` for nanopb (`max_count`, `max_size`, `FT_CALLBACK`)
+- `<name>.options.json` for Embedded Proto (`maxLength`, `callbackStorage`), passed to the
+  generator as `--eams_opt=options_file=...`
+
 # Building the code
 1. Clean previous build results: `rm -rf build/`
 2. Create build scripts:
