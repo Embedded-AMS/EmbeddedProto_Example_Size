@@ -45,7 +45,7 @@ uint32_t run_scenario()
   report_message_size(sizeof(msg));
   HelperSimpleTypes::set_max(msg);
 
-  EmbeddedProto::WriteBufferFixedSize<100> buffer;
+  EmbeddedProto::WriteBufferFixedSize<150> buffer;
   const auto result = HelperSerializeMode::serialize_message(msg, buffer);
 
   // Calculate checksum to prevent dead code elimination
@@ -57,5 +57,6 @@ uint32_t run_scenario()
   }
   g_buffer_checksum = checksum;
 
-  return buffer.get_size();
+  // A serialize error must not be reported as a byte count
+  return (::EmbeddedProto::Error::NO_ERRORS == result) ? buffer.get_size() : 0;
 }

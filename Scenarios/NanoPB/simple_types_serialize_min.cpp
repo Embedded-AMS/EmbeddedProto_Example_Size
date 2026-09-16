@@ -59,5 +59,6 @@ uint32_t run_scenario()
   }
   g_buffer_checksum = checksum;
 
-  return stream.bytes_written;
+  // A serialize error must not be reported as a byte count
+  return result ? stream.bytes_written : 0;
 }

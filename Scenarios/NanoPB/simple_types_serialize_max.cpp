@@ -45,7 +45,7 @@ uint32_t run_scenario()
   HelperSimpleTypesNanoPB::set_max(msg);
 
   // Create buffer for serialized data
-  uint8_t buffer[100];
+  uint8_t buffer[150];
   pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
 
   // Serialize the message
@@ -59,5 +59,6 @@ uint32_t run_scenario()
   }
   g_buffer_checksum = checksum;
 
-  return stream.bytes_written;
+  // A serialize error must not be reported as a byte count
+  return result ? stream.bytes_written : 0;
 }

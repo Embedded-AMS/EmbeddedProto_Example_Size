@@ -57,5 +57,6 @@ uint32_t run_scenario()
   }
   g_buffer_checksum = checksum;
 
-  return buffer.get_size();
+  // A serialize error must not be reported as a byte count
+  return (::EmbeddedProto::Error::NO_ERRORS == result) ? buffer.get_size() : 0;
 }
