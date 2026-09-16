@@ -1,0 +1,5 @@
+# NanoPB options file for string_demo.proto
+# A resident char array with the same capacity as the FieldString<123> Embedded Proto
+# uses in this scenario; nanopb counts the null terminator in max_size.
+
+String_Demo_Message.text max_size:124

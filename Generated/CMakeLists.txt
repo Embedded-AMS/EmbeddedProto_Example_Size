@@ -57,11 +57,20 @@ if(LIBRARY STREQUAL "EmbeddedProto")
     foreach(PROTO_FILE ${PROTO_FILES})
         get_filename_component(PROTO_NAME ${PROTO_FILE} NAME_WE)
         set(OUTPUT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/${PROTO_NAME}.h")
-        
+
+        # Field options kept outside the shared .proto (callbackStorage, maxLength) live in
+        # an optional <name>.options.json next to it.
+        set(OPTIONS_JSON "${CMAKE_SOURCE_DIR}/Protofiles/${PROTO_NAME}.options.json")
+        set(EAMS_OPTIONS "")
+        if(EXISTS "${OPTIONS_JSON}")
+            set(EAMS_OPTIONS "--eams_opt=options_file=${OPTIONS_JSON}")
+        endif()
+
         message(STATUS "Generating EmbeddedProto code for ${PROTO_NAME}")
         execute_process(
             COMMAND ${PROTOC}
                 --plugin=protoc-gen-eams=${PROTOC_GEN_EAMS}
+                ${EAMS_OPTIONS}
                 --eams_out=${CMAKE_CURRENT_SOURCE_DIR}
                 --proto_path=${CMAKE_SOURCE_DIR}/Protofiles
                 ${PROTO_FILE}
@@ -139,7 +148,7 @@ elseif(LIBRARY STREQUAL "NanoPB")
             set(NANOPB_OPTIONS "--nanopb_opt=${OPTIONS_FILE}")
         endif()
 
-        if(NOT EXISTS "${OUTPUT_H}" OR "${PROTO_FILE}" IS_NEWER_THAN "${OUTPUT_H}")
+        if(NOT EXISTS "${OUTPUT_H}" OR "${PROTO_FILE}" IS_NEWER_THAN "${OUTPUT_H}" OR "${OPTIONS_FILE}" IS_NEWER_THAN "${OUTPUT_H}")
             message(STATUS "Generating NanoPB code for ${PROTO_NAME}")
             execute_process(
                 COMMAND ${PROTOC}
