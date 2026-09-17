@@ -145,25 +145,25 @@ inline bool compare_configuration(const Configuration& msg)
   return result;
 }
 
-inline void set_command(Command& msg)
+inline void set_command(DeviceCommand& msg)
 {
   msg.set_sequence(COMMAND_SEQUENCE);
   msg.set_move_to(MOVE_TO);
 }
 
-inline bool compare_command(const Command& msg)
+inline bool compare_command(const DeviceCommand& msg)
 {
-  return (msg.get_sequence() == COMMAND_SEQUENCE) && (msg.get_which_action() == Command::FieldNumber::MOVE_TO)
+  return (msg.get_sequence() == COMMAND_SEQUENCE) && (msg.get_which_action() == DeviceCommand::FieldNumber::MOVE_TO)
          && (msg.get_move_to() == MOVE_TO);
 }
 
-inline void set_ack(Ack& msg)
+inline void set_ack(DeviceAck& msg)
 {
   msg.set_sequence(COMMAND_SEQUENCE);
   msg.set_result(Result::ACCEPTED);
 }
 
-inline bool compare_ack(const Ack& msg)
+inline bool compare_ack(const DeviceAck& msg)
 {
   return (msg.get_sequence() == COMMAND_SEQUENCE) && (msg.get_result() == Result::ACCEPTED);
 }

@@ -36,7 +36,7 @@ syntax = "proto3";
 message Growth_01
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -45,7 +45,7 @@ message Growth_01
 message Growth_02
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -54,7 +54,7 @@ message Growth_02
 message Growth_03
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -63,7 +63,7 @@ message Growth_03
 message Growth_04
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -72,7 +72,7 @@ message Growth_04
 message Growth_05
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -81,7 +81,7 @@ message Growth_05
 message Growth_06
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -90,7 +90,7 @@ message Growth_06
 message Growth_07
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -99,7 +99,7 @@ message Growth_07
 message Growth_08
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -108,7 +108,7 @@ message Growth_08
 message Growth_09
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -117,7 +117,7 @@ message Growth_09
 message Growth_10
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -126,7 +126,7 @@ message Growth_10
 message Growth_11
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -135,7 +135,7 @@ message Growth_11
 message Growth_12
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -144,7 +144,7 @@ message Growth_12
 message Growth_13
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -153,7 +153,7 @@ message Growth_13
 message Growth_14
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -162,7 +162,7 @@ message Growth_14
 message Growth_15
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -171,7 +171,7 @@ message Growth_15
 message Growth_16
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -180,7 +180,7 @@ message Growth_16
 message Growth_17
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -189,7 +189,7 @@ message Growth_17
 message Growth_18
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -198,7 +198,7 @@ message Growth_18
 message Growth_19
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;
@@ -207,7 +207,7 @@ message Growth_19
 message Growth_20
 {
   uint32 id = 1;
-  int32 value = 2;
+  sint32 value = 2;
   float measure = 3;
   bool flag = 4;
   string label = 5;

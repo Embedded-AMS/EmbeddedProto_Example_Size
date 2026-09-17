@@ -40,18 +40,18 @@ enum Result
   BUSY = 3;
 }
 
-message Command
+message DeviceCommand
 {
   uint32 sequence = 1;
   oneof action
   {
     bool set_output = 2;
-    int32 move_to = 3;
+    sint32 move_to = 3;
     uint32 reboot_delay_ms = 4;
   }
 }
 
-message Ack
+message DeviceAck
 {
   uint32 sequence = 1;
   Result result = 2;

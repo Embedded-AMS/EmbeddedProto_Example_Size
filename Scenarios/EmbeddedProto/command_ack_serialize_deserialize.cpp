@@ -69,7 +69,7 @@ namespace
 
 uint32_t run_scenario()
 {
-  const uint32_t command_size = round_trip<Command>(HelperPublished::set_command, HelperPublished::compare_command);
-  const uint32_t ack_size = round_trip<Ack>(HelperPublished::set_ack, HelperPublished::compare_ack);
+  const uint32_t command_size = round_trip<DeviceCommand>(HelperPublished::set_command, HelperPublished::compare_command);
+  const uint32_t ack_size = round_trip<DeviceAck>(HelperPublished::set_ack, HelperPublished::compare_ack);
   return ((0 != command_size) && (0 != ack_size)) ? (command_size + ack_size) : 0;
 }

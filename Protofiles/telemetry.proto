@@ -47,5 +47,5 @@ message Telemetry
   float humidity = 4;
   uint32 battery_mv = 5;
   Status status = 6;
-  int32 rssi = 7;         // negative dBm
+  sint32 rssi = 7;        // negative dBm, sint32 as protobuf advises for signed values
 }
