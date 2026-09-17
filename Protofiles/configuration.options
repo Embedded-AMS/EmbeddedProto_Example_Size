@@ -1,0 +1,4 @@
+# NanoPB options file for configuration.proto, nanopb counts the null terminator in max_size
+
+Configuration.device_name max_size:33
+Configuration.peripherals max_count:4

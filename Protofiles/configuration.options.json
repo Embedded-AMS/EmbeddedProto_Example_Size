@@ -1,0 +1,6 @@
+{
+  "Configuration": {
+    "device_name": { "maxLength": 32 },
+    "peripherals": { "maxLength": 4 }
+  }
+}

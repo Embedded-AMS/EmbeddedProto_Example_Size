@@ -1,0 +1,3 @@
+# NanoPB options file for telemetry_batch.proto
+
+TelemetryBatch.samples max_count:20

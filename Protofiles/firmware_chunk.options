@@ -1,0 +1,3 @@
+# NanoPB options file for firmware_chunk.proto
+
+FirmwareChunk.data max_size:256
