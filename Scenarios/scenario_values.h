@@ -49,9 +49,11 @@ constexpr int32_t RSSI = -67;
 
 // Telemetry batch
 constexpr uint32_t SAMPLE_COUNT = 20;
-constexpr uint32_t sample_offset_ms(uint32_t i) { return i * 50; }
-constexpr float sample_x(uint32_t i) { return 0.125f * static_cast<float>(i); }
-constexpr float sample_y(uint32_t i) { return -0.25f * static_cast<float>(i); }
+// No sample value is zero: a zero is a default protobuf omits, and -0.0f is a zero to
+// one library and not to another.
+constexpr uint32_t sample_offset_ms(uint32_t i) { return (i + 1) * 50; }
+constexpr float sample_x(uint32_t i) { return 0.125f * static_cast<float>(i + 1); }
+constexpr float sample_y(uint32_t i) { return -0.25f * static_cast<float>(i + 1); }
 constexpr float sample_z(uint32_t i) { return 9.75f + 0.0625f * static_cast<float>(i); }
 
 // Configuration
