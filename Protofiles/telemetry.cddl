@@ -1,0 +1,41 @@
+ ;
+ ;  Copyright (C) 2020-2026 Embedded AMS B.V. - All Rights Reserved
+ ;
+ ;  This file is part of Embedded Proto.
+ ;
+ ;  Embedded Proto is open source software: you can redistribute it and/or 
+ ;  modify it under the terms of the GNU General Public License as published 
+ ;  by the Free Software Foundation, version 3 of the license.
+ ;
+ ;  Embedded Proto  is distributed in the hope that it will be useful,
+ ;  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ ;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ ;  GNU General Public License for more details.
+ ;
+ ;  You should have received a copy of the GNU General Public License
+ ;  along with Embedded Proto. If not, see <https://www.gnu.org/licenses/>.
+ ;
+ ;  For commercial and closed source application please visit:
+ ;  <https://embeddedproto.com/pricing/>.
+ ;
+ ;  Embedded AMS B.V.
+ ;  Info:
+ ;    info at EmbeddedProto dot com
+ ;
+ ;  Postal address:
+ ;    Atoomweg 2
+ ;    1627 LE, Hoorn
+ ;    the Netherlands
+ ;/
+
+; CDDL counterpart of telemetry.proto for zcbor.
+
+Telemetry = {
+  ? device_id: 1 => uint,
+  ? timestamp: 2 => uint .size 8,
+  ? temperature: 3 => float32,
+  ? humidity: 4 => float32,
+  ? battery_mv: 5 => uint,
+  ? status: 6 => int,
+  ? rssi: 7 => int,
+}

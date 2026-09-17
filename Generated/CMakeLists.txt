@@ -278,7 +278,15 @@ elseif(LIBRARY STREQUAL "Zcbor")
         list(APPEND CDDL_ARGS -c ${CDDL_FILE})
     endforeach()
     set(ZCBOR_ENTRY_TYPES Simple_Types String_Demo_Message OneOf_Demo Optional_Demo
-        Repeated_Integers Repeated_Messages Nested_Repeated_Messages EnvelopToMCU EnvelopFromMCU)
+        Repeated_Integers Repeated_Messages Nested_Repeated_Messages EnvelopToMCU EnvelopFromMCU
+        Telemetry TelemetryBatch Configuration DeviceCommand DeviceAck FirmwareChunk)
+    foreach(N RANGE 1 20)
+        if(N LESS 10)
+            list(APPEND ZCBOR_ENTRY_TYPES Growth_0${N})
+        else()
+            list(APPEND ZCBOR_ENTRY_TYPES Growth_${N})
+        endif()
+    endforeach()
     message(STATUS "Generating zcbor code for ${CDDL_FILES}")
     execute_process(
         COMMAND ${ZCBOR_BIN} code ${CDDL_ARGS} -e -d -s -b 32 -t ${ZCBOR_ENTRY_TYPES}

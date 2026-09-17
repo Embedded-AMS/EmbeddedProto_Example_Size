@@ -1,0 +1,192 @@
+ ;
+ ;  Copyright (C) 2020-2026 Embedded AMS B.V. - All Rights Reserved
+ ;
+ ;  This file is part of Embedded Proto.
+ ;
+ ;  Embedded Proto is open source software: you can redistribute it and/or 
+ ;  modify it under the terms of the GNU General Public License as published 
+ ;  by the Free Software Foundation, version 3 of the license.
+ ;
+ ;  Embedded Proto  is distributed in the hope that it will be useful,
+ ;  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ ;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ ;  GNU General Public License for more details.
+ ;
+ ;  You should have received a copy of the GNU General Public License
+ ;  along with Embedded Proto. If not, see <https://www.gnu.org/licenses/>.
+ ;
+ ;  For commercial and closed source application please visit:
+ ;  <https://embeddedproto.com/pricing/>.
+ ;
+ ;  Embedded AMS B.V.
+ ;  Info:
+ ;    info at EmbeddedProto dot com
+ ;
+ ;  Postal address:
+ ;    Atoomweg 2
+ ;    1627 LE, Hoorn
+ ;    the Netherlands
+ ;/
+
+; CDDL counterpart of schema_growth.proto for zcbor.
+
+Growth_01 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_02 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_03 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_04 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_05 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_06 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_07 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_08 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_09 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_10 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_11 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_12 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_13 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_14 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_15 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_16 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_17 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_18 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_19 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
+Growth_20 = {
+  ? id: 1 => uint,
+  ? value: 2 => int,
+  ? measure: 3 => float32,
+  ? flag: 4 => bool,
+  ? label: 5 => tstr,
+}
+
