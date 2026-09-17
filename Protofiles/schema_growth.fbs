@@ -1,0 +1,52 @@
+/*
+ *  Copyright (C) 2020-2026 Embedded AMS B.V. - All Rights Reserved
+ *
+ *  This file is part of Embedded Proto.
+ *
+ *  Embedded Proto is open source software: you can redistribute it and/or 
+ *  modify it under the terms of the GNU General Public License as published 
+ *  by the Free Software Foundation, version 3 of the license.
+ *
+ *  Embedded Proto  is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Embedded Proto. If not, see <https://www.gnu.org/licenses/>.
+ *
+ *  For commercial and closed source application please visit:
+ *  <https://embeddedproto.com/pricing/>.
+ *
+ *  Embedded AMS B.V.
+ *  Info:
+ *    info at EmbeddedProto dot com
+ *
+ *  Postal address:
+ *    Atoomweg 2
+ *    1627 LE, Hoorn
+ *    the Netherlands
+ */
+
+// FlatBuffers counterpart of schema_growth.proto.
+
+table Growth_01 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_02 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_03 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_04 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_05 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_06 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_07 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_08 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_09 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_10 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_11 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_12 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_13 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_14 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_15 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_16 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_17 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_18 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_19 { id:uint; value:int; measure:float; flag:bool; label:string; }
+table Growth_20 { id:uint; value:int; measure:float; flag:bool; label:string; }
