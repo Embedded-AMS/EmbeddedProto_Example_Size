@@ -4,6 +4,25 @@ To compare Embedded Proto to alternatives such as NanoPB and ArduinoJson in term
 Performance in this case is specified as flash, RAM, CPU, and buffer usage.
 ArduinoJson is not a protobuf library but is considered a likely alternative to protobuf, so it is used as a comparison.
 
+# Scenarios
+Two sets live in `Scenarios/<Library>/`. The published set is what the website shows, six
+messages shaped like real device traffic with the same values in every library
+(`Scenarios/scenario_values.h`):
+
+| Scenario | Message | Shows |
+|---|---|---|
+| `telemetry_serialize`, `telemetry_serialize_deserialize` | `Telemetry`, 7 mixed fields | the small message every device sends |
+| `telemetry_batch_serialize_deserialize` | `TelemetryBatch`, 20 nested samples | the buffered upload |
+| `configuration_serialize_deserialize` | `Configuration`, oneofs, string, optional | the complex message |
+| `command_ack_serialize_deserialize` | `DeviceCommand` and `DeviceAck` | fixed cost per call |
+| `firmware_chunk_serialize_deserialize` | `FirmwareChunk`, 256 resident bytes | the payload |
+| `firmware_stream_serialize_deserialize` | `FirmwareStream`, streamed in 32 byte windows | the RAM story, protobuf libraries only |
+| `schema_growth_01`, `_05`, `_20` | 1, 5 or 20 `Growth_NN` types round tripped | flash per message type in the schema |
+
+The other scenarios (`simple_types_*`, `string_*`, `oneof_*`, `optional_*`, `repeated_*`,
+`complete_demo_*`, `*_callback_*`) are the diagnostic set for the Embedded Proto developers.
+They probe single features and encoder edge cases and are not meant for the website.
+
 # Compiler flags
 All C++ is compiled with `-Os -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti
 -fno-threadsafe-statics -fno-use-cxa-atexit` and linked with `--gc-sections`, the flags an
