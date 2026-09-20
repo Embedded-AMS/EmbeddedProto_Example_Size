@@ -1,0 +1,61 @@
+/*
+ *  Copyright (C) 2020-2026 Embedded AMS B.V. - All Rights Reserved
+ *
+ *  This file is part of Embedded Proto.
+ *
+ *  Embedded Proto is open source software: you can redistribute it and/or 
+ *  modify it under the terms of the GNU General Public License as published 
+ *  by the Free Software Foundation, version 3 of the license.
+ *
+ *  Embedded Proto  is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Embedded Proto. If not, see <https://www.gnu.org/licenses/>.
+ *
+ *  For commercial and closed source application please visit:
+ *  <https://embeddedproto.com/pricing/>.
+ *
+ *  Embedded AMS B.V.
+ *  Info:
+ *    info at EmbeddedProto dot com
+ *
+ *  Postal address:
+ *    Atoomweg 2
+ *    1627 LE, Hoorn
+ *    the Netherlands
+ */
+
+// FlatBuffers counterpart of oneof.proto. A FlatBuffers union can only hold tables,
+// so every scalar member of the oneof is wrapped in a one-field table.
+
+include "simple_types.fbs";
+
+table Int32_Value { value:int; }
+table Int64_Value { value:long; }
+table Uint32_Value { value:uint; }
+table Uint64_Value { value:ulong; }
+table Bool_Value { value:bool; }
+table Float_Value { value:float; }
+table Double_Value { value:double; }
+
+union Data_Field
+{
+  Int32_Value,
+  Int64_Value,
+  Uint32_Value,
+  Uint64_Value,
+  Bool_Value,
+  Float_Value,
+  Double_Value,
+  Simple_Types
+}
+
+table OneOf_Demo
+{
+  data_field:Data_Field;
+}
+
+root_type OneOf_Demo;

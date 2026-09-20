@@ -1,0 +1,3 @@
+# NanoPB options file for schema_growth.proto, nanopb counts the null terminator in max_size
+
+*.label max_size:17

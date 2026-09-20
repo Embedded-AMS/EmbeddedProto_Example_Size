@@ -1,0 +1,3 @@
+# NanoPB options file for firmware_stream.proto, the chunk is streamed through a callback
+
+FirmwareStream.data type:FT_CALLBACK

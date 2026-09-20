@@ -1,0 +1,24 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Current Scenario",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "openocd",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/bin/nucleo_f446re_app.elf",
+            "device": "STM32F446RE",
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32f4x.cfg"
+            ],
+            "// Download SVD from https://github.com/cmsis-svd/cmsis-svd-data/blob/main/data/STMicro/STM32F446.svd": "",
+            "svdFile": "${workspaceFolder}/Firmware/Nucleo-F446RE/STM32F446.svd",
+            "preLaunchTask": "Build Current Scenario",
+            "runToEntryPoint": "main",
+            "armToolchainPath": "/usr/bin",
+            "gdbPath": "gdb-multiarch"
+        }
+    ]
+}

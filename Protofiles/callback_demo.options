@@ -1,0 +1,5 @@
+# NanoPB options file for callback_demo.proto
+# Streams both fields through pb_callback_t, the counterpart of Embedded Proto's callbackStorage.
+
+Sample_Stream.samples type:FT_CALLBACK
+Blob.payload          type:FT_CALLBACK

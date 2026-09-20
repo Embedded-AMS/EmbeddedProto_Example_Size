@@ -1,0 +1,74 @@
+/*
+ *  Copyright (C) 2020-2026 Embedded AMS B.V. - All Rights Reserved
+ *
+ *  This file is part of Embedded Proto.
+ *
+ *  Embedded Proto is open source software: you can redistribute it and/or 
+ *  modify it under the terms of the GNU General Public License as published 
+ *  by the Free Software Foundation, version 3 of the license.
+ *
+ *  Embedded Proto  is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Embedded Proto. If not, see <https://www.gnu.org/licenses/>.
+ *
+ *  For commercial and closed source application please visit:
+ *  <https://embeddedproto.com/pricing/>.
+ *
+ *  Embedded AMS B.V.
+ *  Info:
+ *    info at EmbeddedProto dot com
+ *
+ *  Postal address:
+ *    Atoomweg 2
+ *    1627 LE, Hoorn
+ *    the Netherlands
+ */
+
+syntax = "proto3";
+
+// The complex message: a oneof per peripheral, nested messages in a repeated field,
+// a string and an optional scalar with presence.
+
+message UartConfig
+{
+  uint32 baud = 1;
+  uint32 data_bits = 2;
+  bool parity = 3;
+}
+
+message SpiConfig
+{
+  uint32 prescaler = 1;
+  bool cpol = 2;
+  bool cpha = 3;
+}
+
+message MotorConfig
+{
+  uint32 max_speed = 1;
+  bool invert = 2;
+  uint32 home_pin = 3;
+}
+
+message Peripheral
+{
+  uint32 index = 1;
+  oneof kind
+  {
+    UartConfig uart = 10;
+    SpiConfig spi = 11;
+    MotorConfig motor = 12;
+  }
+}
+
+message Configuration
+{
+  uint32 version = 1;
+  string device_name = 2;
+  repeated Peripheral peripherals = 3;
+  optional uint32 report_interval_ms = 4;
+}

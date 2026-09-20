@@ -1,0 +1,54 @@
+/*
+ *  Copyright (C) 2020-2026 Embedded AMS B.V. - All Rights Reserved
+ *
+ *  This file is part of Embedded Proto.
+ *
+ *  Embedded Proto is open source software: you can redistribute it and/or 
+ *  modify it under the terms of the GNU General Public License as published 
+ *  by the Free Software Foundation, version 3 of the license.
+ *
+ *  Embedded Proto  is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Embedded Proto. If not, see <https://www.gnu.org/licenses/>.
+ *
+ *  For commercial and closed source application please visit:
+ *  <https://embeddedproto.com/pricing/>.
+ *
+ *  Embedded AMS B.V.
+ *  Info:
+ *    info at EmbeddedProto dot com
+ *
+ *  Postal address:
+ *    Atoomweg 2
+ *    1627 LE, Hoorn
+ *    the Netherlands
+ */
+
+// FlatBuffers counterpart of configuration.proto. The oneof is a union of tables,
+// the optional scalar is an optional scalar (= null).
+
+table UartConfig { baud:uint; data_bits:uint; parity:bool; }
+table SpiConfig { prescaler:uint; cpol:bool; cpha:bool; }
+table MotorConfig { max_speed:uint; invert:bool; home_pin:uint; }
+
+union Kind { UartConfig, SpiConfig, MotorConfig }
+
+table Peripheral
+{
+  index:uint;
+  kind:Kind;
+}
+
+table Configuration
+{
+  version:uint;
+  device_name:string;
+  peripherals:[Peripheral];
+  report_interval_ms:uint = null;
+}
+
+root_type Configuration;

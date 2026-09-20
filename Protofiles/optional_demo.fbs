@@ -1,0 +1,55 @@
+/*
+ *  Copyright (C) 2020-2026 Embedded AMS B.V. - All Rights Reserved
+ *
+ *  This file is part of Embedded Proto.
+ *
+ *  Embedded Proto is open source software: you can redistribute it and/or 
+ *  modify it under the terms of the GNU General Public License as published 
+ *  by the Free Software Foundation, version 3 of the license.
+ *
+ *  Embedded Proto  is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Embedded Proto. If not, see <https://www.gnu.org/licenses/>.
+ *
+ *  For commercial and closed source application please visit:
+ *  <https://embeddedproto.com/pricing/>.
+ *
+ *  Embedded AMS B.V.
+ *  Info:
+ *    info at EmbeddedProto dot com
+ *
+ *  Postal address:
+ *    Atoomweg 2
+ *    1627 LE, Hoorn
+ *    the Netherlands
+ */
+
+// FlatBuffers counterpart of optional_demo.proto. Every field is an optional scalar
+// (= null), so a value equal to the default is still stored and reported present.
+
+include "simple_types.fbs";
+
+table Optional_Demo
+{
+  a_int32:int = null;
+  a_int64:long = null;
+  a_uint32:uint = null;
+  a_uint64:ulong = null;
+  a_sint32:int = null;
+  a_sint64:long = null;
+  a_bool:bool = null;
+  a_enum:Test_Enum = null;
+  a_fixed64:ulong = null;
+  a_sfixed64:long = null;
+  a_double:double = null;
+  a_fixed32:uint = null;
+  a_sfixed32:int = null;
+  a_float:float = null;
+  a_nested_enum:Nested_Enum = null;
+}
+
+root_type Optional_Demo;
