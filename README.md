@@ -105,4 +105,8 @@ Run `./flash.sh`
 - `SCENARIO` selects which file is built from `./Scenarios/<LIBRARY>/<SCENARIO>.cpp`.
 - Arm GNU EABI tools are used to extract flash and static RAM usage.
 - OpenOCD is used to flash a Nucleo-F446RE and read dynamic metrics (CPU cycles and buffer usage).
+- The green LED LD2 blinks (100 ms every 2 s, driven by TIM2 in hardware so the cycle count is
+  unaffected) while the board runs a scenario or holds results not yet read. After reading the
+  results the tool resets the peripherals and halts the core, so a dark LED means the tool is
+  done with the board.
 - All results are stored in a SQLite database.

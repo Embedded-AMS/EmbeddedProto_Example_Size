@@ -30,17 +30,16 @@
 
 /**
  * @file blinky.cpp
- * @brief Baseline scenario - simple LED blink
+ * @brief Baseline scenario - the empty scenario
  *
- * This scenario provides a baseline measurement with minimal code overhead.
- * It simply toggles the on-board LED (LD2) each time run_scenario() is called.
+ * This scenario provides a baseline measurement with minimal code overhead. It does nothing,
+ * the on-board LED (LD2) is blinked by TIM2 in the shared firmware for every scenario.
  */
 
 #include "main.h"
 
 uint32_t run_scenario()
 {
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    // Nothing is serialized, the baseline is exempt from the zero-means-failure rule.
-    return 0;
+  // Nothing is serialized, the baseline is exempt from the zero-means-failure rule.
+  return 0;
 }

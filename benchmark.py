@@ -994,8 +994,10 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
             openocd_cmd.extend([
                 '-c', f'mdw 0x{g_message_size_bytes_addr:08x}',
             ])
+        # Reset the peripherals so the LED stops blinking and keep the core halted: the board
+        # is done until the next flash.
         openocd_cmd.extend([
-            '-c', 'resume',
+            '-c', 'reset halt',
             '-c', 'exit'
         ])
 
