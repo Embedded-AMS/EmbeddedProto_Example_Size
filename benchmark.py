@@ -55,6 +55,7 @@ class DynamicMetrics:
     cpu_cycles: Optional[int]
     n_bytes_in_buffer: Optional[int]
     message_size_bytes: Optional[int]
+    peak_ram_bytes: Optional[int]
 
 @dataclass
 class GitInfo:
@@ -168,6 +169,7 @@ class BenchmarkResult:
     cpu_cycles: Optional[int]
     n_bytes_in_buffer: Optional[int]
     message_size_bytes: Optional[int]
+    peak_ram_bytes: Optional[int]
     library_commit_hash: str
     library_branch: Optional[str]
     library_tag: Optional[str]
@@ -867,133 +869,109 @@ def flash_device(elf_path: str) -> bool:
 
     return False
 
+# The globals the firmware fills for the tool, see Firmware/Nucleo-F446RE/Core/Src/main.cpp,
+# each mapped to the field of DynamicMetrics it lands in. Only the cycle counter is required.
+DEVICE_SYMBOLS = {
+    'g_cpu_cycles_used': 'cpu_cycles',
+    'g_n_bytes_in_buffer': 'n_bytes_in_buffer',
+    'g_message_size_bytes': 'message_size_bytes',
+    'g_peak_ram_bytes': 'peak_ram_bytes',
+}
+
+def no_dynamic_metrics() -> DynamicMetrics:
+    """The metrics of a build that was not run on the device."""
+    return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None, message_size_bytes=None, peak_ram_bytes=None)
+
+def find_device_symbols(elf_path: str) -> Dict[str, int]:
+    """
+    Look up the addresses of the DEVICE_SYMBOLS in the ELF file with arm-none-eabi-nm.
+
+    Returns:
+        Dictionary of symbol name to address, only for the symbols the firmware defines.
+    """
+    nm_result = subprocess.run(
+        ['arm-none-eabi-nm', '--defined-only', '--format=sysv', '--radix=d', elf_path],
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    addresses: Dict[str, int] = {}
+    for line in nm_result.stdout.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+        # sysv output is pipe separated: symbol|address|type|size|section
+        if '|' in line:
+            parts = line.split('|')
+            symbol_name = parts[0].strip()
+            address_text = parts[1].strip() if len(parts) >= 2 else ''
+        else:
+            parts = line.split()
+            symbol_name = parts[-1] if len(parts) >= 4 else ''
+            address_text = parts[0] if len(parts) >= 4 else ''
+        if symbol_name in DEVICE_SYMBOLS:
+            try:
+                addresses[symbol_name] = int(address_text)
+            except ValueError:
+                continue
+    return addresses
+
 def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetrics:
     """
-    Read dynamic metrics (CPU cycles) from the running device via OpenOCD/SWD.
+    Read the dynamic metrics from the running device via OpenOCD/SWD.
+
+    The firmware runs the scenario once and leaves the results in the globals of DEVICE_SYMBOLS.
+    After a delay the core is halted, every symbol is read with mdw, and the board is reset so
+    the LED stops blinking.
 
     Args:
         elf_path: Path to the ELF file
-        delay_seconds: Time to wait for scenario to complete (default: 0.5 seconds)
+        delay_seconds: Time to wait for the scenario to complete
 
     Returns:
-        DynamicMetrics dataclass with cpu_cycles
-        Returns None values if device is not flashed or metrics cannot be read
+        DynamicMetrics with None for every value that could not be read
 
     Raises:
         FileNotFoundError: If required tools (arm-none-eabi-nm, openocd) are not installed
     """
-    # Check if OpenOCD is installed
     if not shutil.which('openocd'):
         raise FileNotFoundError(
             "openocd not found. Please install OpenOCD. "
             "On Ubuntu/Debian: sudo apt install openocd"
         )
-
-    # Check if arm-none-eabi-nm is available
     if not shutil.which('arm-none-eabi-nm'):
         raise FileNotFoundError(
             "arm-none-eabi-nm not found. Please install the ARM toolchain. "
             "On Ubuntu/Debian: sudo apt install binutils-arm-none-eabi"
         )
-
-    # Check if ELF file exists
-    elf_file = Path(elf_path)
-    if not elf_file.exists():
+    if not Path(elf_path).exists():
         print("Warning: ELF file not found for dynamic metrics reading")
-        return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None, message_size_bytes=None)
+        return no_dynamic_metrics()
 
     print(f"Reading dynamic metrics from device...")
-
     try:
-        # Get symbol addresses using arm-none-eabi-nm
-        nm_result = subprocess.run(
-            ['arm-none-eabi-nm', '--defined-only', '--format=sysv', '--radix=d', elf_path],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-
-        # Parse symbol addresses
-        g_cpu_cycles_used_addr = None
-        g_n_bytes_in_buffer_addr = None
-        g_message_size_bytes_addr = None
-
-        for line in nm_result.stdout.split('\n'):
-            line = line.strip()
-            if not line:
-                continue
-
-            # Parse nm output - it can be either space-separated or pipe-separated
-            if '|' in line:
-                # Pipe-separated format: symbol|address|type|size|section
-                parts = line.split('|')
-                if len(parts) >= 2:
-                    symbol_name = parts[0].strip()
-                    try:
-                        address = int(parts[1].strip())
-                        if symbol_name == 'g_cpu_cycles_used':
-                            g_cpu_cycles_used_addr = address
-                        elif symbol_name == 'g_n_bytes_in_buffer':
-                            g_n_bytes_in_buffer_addr = address
-                        elif symbol_name == 'g_message_size_bytes':
-                            g_message_size_bytes_addr = address
-                    except ValueError:
-                        continue
-            else:
-                # Space-separated format: address type size section symbol
-                parts = line.split()
-                if len(parts) >= 4:
-                    symbol_name = parts[-1]
-                    if symbol_name == 'g_cpu_cycles_used':
-                        g_cpu_cycles_used_addr = int(parts[0])
-                    elif symbol_name == 'g_n_bytes_in_buffer':
-                        g_n_bytes_in_buffer_addr = int(parts[0])
-                    elif symbol_name == 'g_message_size_bytes':
-                        g_message_size_bytes_addr = int(parts[0])
-
-        if g_cpu_cycles_used_addr is None:
+        addresses = find_device_symbols(elf_path)
+        if 'g_cpu_cycles_used' not in addresses:
             print("Warning: Could not find required symbols in ELF file")
-            return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None, message_size_bytes=None)
+            return no_dynamic_metrics()
+        for symbol_name in DEVICE_SYMBOLS:
+            if symbol_name in addresses:
+                print(f"  {symbol_name} at 0x{addresses[symbol_name]:08X}")
+            else:
+                print(f"  {symbol_name} not found (not measured by this firmware)")
 
-        print(f"Found symbols: g_cpu_cycles_used at 0x{g_cpu_cycles_used_addr:08X}")
-        if g_n_bytes_in_buffer_addr is not None:
-            print(f"  g_n_bytes_in_buffer at 0x{g_n_bytes_in_buffer_addr:08X}")
-        else:
-            print("  g_n_bytes_in_buffer not found (buffer size measurement not available)")
-        if g_message_size_bytes_addr is not None:
-            print(f"  g_message_size_bytes at 0x{g_message_size_bytes_addr:08X}")
-        else:
-            print("  g_message_size_bytes not found (message size measurement not available)")
-
-        # Wait for scenario to complete
         print(f"Waiting {delay_seconds} seconds for scenario to complete...")
         time.sleep(delay_seconds)
 
-        # Read memory using OpenOCD via command-line arguments
-        # Convert addresses to hex format for OpenOCD mdw command
-        addr1_hex = f"0x{g_cpu_cycles_used_addr:08x}"
-
-        # Build OpenOCD command list
         openocd_cmd = [
             'openocd',
             '-f', 'interface/stlink.cfg',
             '-f', 'target/stm32f4x.cfg',
             '-c', 'init',
             '-c', 'halt',
-            '-c', f'mdw {addr1_hex}',
         ]
-
-        # Add n_bytes_in_buffer reading if available
-        if g_n_bytes_in_buffer_addr is not None:
-            addr2_hex = f"0x{g_n_bytes_in_buffer_addr:08x}"
-            openocd_cmd.extend([
-                '-c', f'mdw {addr2_hex}',
-            ])
-
-        if g_message_size_bytes_addr is not None:
-            openocd_cmd.extend([
-                '-c', f'mdw 0x{g_message_size_bytes_addr:08x}',
-            ])
+        for address in addresses.values():
+            openocd_cmd.extend(['-c', f'mdw 0x{address:08x}'])
         # Reset the peripherals so the LED stops blinking and keep the core halted: the board
         # is done until the next flash.
         openocd_cmd.extend([
@@ -1002,83 +980,39 @@ def read_dynamic_metrics(elf_path: str, delay_seconds: float = 2) -> DynamicMetr
         ])
 
         try:
-            # Run OpenOCD with commands passed via -c options
-            result = subprocess.run(
-                openocd_cmd,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-
-            # Parse OpenOCD output to extract memory values
-            # OpenOCD outputs to stderr, so check both stdout and stderr
-            all_output = result.stdout + "\n" + result.stderr
-            cpu_cycles = None
-            n_bytes_in_buffer = None
-            message_size_bytes = None
-
-            # OpenOCD mdw output format: "0x20000028: 12345678"
-            addr1_lower = f"0x{g_cpu_cycles_used_addr:08x}"
-            addr2_lower = f"0x{g_n_bytes_in_buffer_addr:08x}" if g_n_bytes_in_buffer_addr is not None else None
-            addr3_lower = f"0x{g_message_size_bytes_addr:08x}" if g_message_size_bytes_addr is not None else None
-
-            for line in all_output.split('\n'):
-                line = line.strip().lower()
-                if not line:
-                    continue
-
-                # Check if line contains the address
-                if addr1_lower in line:
-                    # Parse memory value: "0xaddress: value"
-                    parts = line.split(':')
-                    if len(parts) >= 2:
-                        try:
-                            # Value might be space-separated after colon
-                            value_str = parts[1].strip().split()[0]
-                            cpu_cycles = int(value_str, 16)
-                        except (ValueError, IndexError):
-                            pass
-                elif addr2_lower is not None and addr2_lower in line:
-                    # Parse memory value: "0xaddress: value"
-                    parts = line.split(':')
-                    if len(parts) >= 2:
-                        try:
-                            # Value might be space-separated after colon
-                            value_str = parts[1].strip().split()[0]
-                            n_bytes_in_buffer = int(value_str, 16)
-                        except (ValueError, IndexError):
-                            pass
-                elif addr3_lower is not None and addr3_lower in line:
-                    parts = line.split(':')
-                    if len(parts) >= 2:
-                        try:
-                            value_str = parts[1].strip().split()[0]
-                            message_size_bytes = int(value_str, 16)
-                        except (ValueError, IndexError):
-                            pass
-
-            print(f"Dynamic metrics read successfully:")
-            print(f"  CPU cycles: {cpu_cycles}" if cpu_cycles is not None else "  CPU cycles: N/A")
-            print(f"  Buffer bytes: {n_bytes_in_buffer}" if n_bytes_in_buffer is not None else "  Buffer bytes: N/A")
-            print(f"  Message bytes: {message_size_bytes}" if message_size_bytes is not None else "  Message bytes: N/A")
-
-            return DynamicMetrics(
-                cpu_cycles=cpu_cycles,
-                n_bytes_in_buffer=n_bytes_in_buffer,
-                message_size_bytes=message_size_bytes
-            )
-
+            result = subprocess.run(openocd_cmd, capture_output=True, text=True, check=True)
         except subprocess.CalledProcessError as e:
             error_output = e.stderr or e.stdout or "Unknown OpenOCD error"
             print(f"Warning: Could not read dynamic metrics: {error_output.strip()}")
-            return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None, message_size_bytes=None)
+            return no_dynamic_metrics()
+
+        # OpenOCD prints "0xaddress: value" for every mdw, to stdout or stderr
+        all_output = result.stdout + "\n" + result.stderr
+        values: Dict[str, Optional[int]] = {field: None for field in DEVICE_SYMBOLS.values()}
+        for line in all_output.split('\n'):
+            line = line.strip().lower()
+            for symbol_name, address in addresses.items():
+                if f"0x{address:08x}" in line:
+                    parts = line.split(':')
+                    if len(parts) >= 2:
+                        try:
+                            values[DEVICE_SYMBOLS[symbol_name]] = int(parts[1].strip().split()[0], 16)
+                        except (ValueError, IndexError):
+                            pass
+
+        print(f"Dynamic metrics read successfully:")
+        print(f"  CPU cycles: {values['cpu_cycles']}" if values['cpu_cycles'] is not None else "  CPU cycles: N/A")
+        print(f"  Buffer bytes: {values['n_bytes_in_buffer']}" if values['n_bytes_in_buffer'] is not None else "  Buffer bytes: N/A")
+        print(f"  Message bytes: {values['message_size_bytes']}" if values['message_size_bytes'] is not None else "  Message bytes: N/A")
+        print(f"  Peak RAM bytes: {values['peak_ram_bytes']}" if values['peak_ram_bytes'] is not None else "  Peak RAM bytes: N/A")
+        return DynamicMetrics(**values)
 
     except subprocess.CalledProcessError as e:
         print(f"Warning: Could not extract symbol information: {str(e)}")
-        return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None, message_size_bytes=None)
+        return no_dynamic_metrics()
     except Exception as e:
         print(f"Warning: Unexpected error reading dynamic metrics: {str(e)}")
-        return DynamicMetrics(cpu_cycles=None, n_bytes_in_buffer=None, message_size_bytes=None)
+        return no_dynamic_metrics()
 
 def init_database() -> None:
     """
@@ -1106,6 +1040,7 @@ def init_database() -> None:
                     cpu_cycles INTEGER,
                     n_bytes_in_buffer INTEGER,
                     message_size_bytes INTEGER,
+                    peak_ram_bytes INTEGER,
                     library_commit_hash TEXT NOT NULL,
                     library_branch TEXT,
                     library_tag TEXT,
@@ -1144,6 +1079,13 @@ def init_database() -> None:
             # Add message_size_bytes column if it doesn't exist (for existing databases)
             try:
                 cursor.execute('ALTER TABLE benchmark_results ADD COLUMN message_size_bytes INTEGER')
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
+
+            # Add peak_ram_bytes column if it doesn't exist (for existing databases)
+            try:
+                cursor.execute('ALTER TABLE benchmark_results ADD COLUMN peak_ram_bytes INTEGER')
             except sqlite3.OperationalError:
                 # Column already exists
                 pass
@@ -1194,10 +1136,10 @@ def store_result(result: BenchmarkResult) -> None:
             cursor.execute('''
                 INSERT INTO benchmark_results (
                     timestamp, library, scenario, benchmark_mode, text_bytes, data_bytes, bss_bytes,
-                    cpu_cycles, n_bytes_in_buffer, message_size_bytes,
+                    cpu_cycles, n_bytes_in_buffer, message_size_bytes, peak_ram_bytes,
                     library_commit_hash, library_branch, library_tag, library_modified,
                     build_type, optimization_flags
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 result.timestamp,
                 result.library,
@@ -1209,6 +1151,7 @@ def store_result(result: BenchmarkResult) -> None:
                 result.cpu_cycles,
                 result.n_bytes_in_buffer,
                 result.message_size_bytes,
+                result.peak_ram_bytes,
                 result.library_commit_hash,
                 result.library_branch,
                 result.library_tag,
@@ -1270,7 +1213,8 @@ def get_latest_results(
                     library_modified,
                     build_type,
                     optimization_flags,
-                    message_size_bytes
+                    message_size_bytes,
+                    peak_ram_bytes
                 FROM benchmark_results
             '''
             conditions = []
@@ -1311,7 +1255,8 @@ def get_latest_results(
                     library_modified=bool(row[12]),
                     build_type=row[13] if row[13] else 'Release',
                     optimization_flags=row[14] if row[14] else get_optimization_flags('Release'),
-                    message_size_bytes=row[15]
+                    message_size_bytes=row[15],
+                    peak_ram_bytes=row[16]
                 )
                 results.append(result)
 
@@ -1375,6 +1320,7 @@ def create_benchmark_result(
         cpu_cycles=dynamic_metrics.cpu_cycles,
         n_bytes_in_buffer=dynamic_metrics.n_bytes_in_buffer,
         message_size_bytes=dynamic_metrics.message_size_bytes,
+        peak_ram_bytes=dynamic_metrics.peak_ram_bytes,
         library_commit_hash=git_info.commit_hash,
         library_branch=git_info.branch,
         library_tag=git_info.tag,
@@ -1421,6 +1367,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
             f"{result.bss_bytes:,}",
             f"{result.cpu_cycles:,}" if result.cpu_cycles is not None else "N/A",
             f"{result.message_size_bytes:,}" if result.message_size_bytes is not None else "N/A",
+            f"{result.peak_ram_bytes:,}" if result.peak_ram_bytes is not None else "N/A",
             result.library_commit_hash[:8] if result.library_commit_hash else "N/A"
         ]
         table_data.append(row)
@@ -1442,6 +1389,7 @@ def display_results(results: List[BenchmarkResult]) -> None:
         "bss (bytes)",
         "CPU Cycles",
         "Message (bytes)",
+        "Peak RAM (bytes)",
         "Commit"
     ]
 
@@ -1816,7 +1764,7 @@ def main() -> None:
                     library=args.library,
                     scenario=args.scenario,
                     static_sizes=static_sizes,
-                    dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None),
+                    dynamic_metrics=dynamic_metrics if args.flash else no_dynamic_metrics(),
                     git_info=git_info,
                     build_type=build_type,
                     benchmark_mode=benchmark_mode
@@ -1899,7 +1847,7 @@ def main() -> None:
                         library=args.library,
                         scenario=scenario,
                         static_sizes=static_sizes,
-                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None),
+                        dynamic_metrics=dynamic_metrics if args.flash else no_dynamic_metrics(),
                         git_info=git_info,
                         build_type=build_type,
                         benchmark_mode=benchmark_mode
@@ -1992,7 +1940,7 @@ def main() -> None:
                         library=lib,
                         scenario=args.scenario,
                         static_sizes=static_sizes,
-                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None),
+                        dynamic_metrics=dynamic_metrics if args.flash else no_dynamic_metrics(),
                         git_info=git_info,
                         build_type=build_type,
                         benchmark_mode=benchmark_mode
@@ -2078,7 +2026,7 @@ def main() -> None:
                         library=lib,
                         scenario=scenario,
                         static_sizes=static_sizes,
-                        dynamic_metrics=dynamic_metrics if args.flash else DynamicMetrics(None, None, None),
+                        dynamic_metrics=dynamic_metrics if args.flash else no_dynamic_metrics(),
                         git_info=git_info,
                         build_type=build_type,
                         benchmark_mode=benchmark_mode
