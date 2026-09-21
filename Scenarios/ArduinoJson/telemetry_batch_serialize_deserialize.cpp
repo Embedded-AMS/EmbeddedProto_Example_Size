@@ -28,6 +28,12 @@
  *    the Netherlands
  */
 
+// ArduinoJson 7 keeps a document in pools of slots on the heap, one pool of this many slots at
+// a time. The pool is sized to the largest document of this scenario, rounded up to eight
+// slots, the way the other libraries size their buffers. ArduinoJson is header only, so the
+// define here is all it takes.
+#define ARDUINOJSON_POOL_CAPACITY 192
+
 #include <ArduinoJson.h>
 #include <ArduinoJson/helper_published.h>
 #include <ArduinoJson/counting_allocator.h>

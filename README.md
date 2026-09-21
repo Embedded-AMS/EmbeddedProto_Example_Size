@@ -70,6 +70,10 @@ next to them in `Protofiles/`:
   buffer size, rounded up to a multiple of 128, and the CMake builds the runtime with it. That is
   the counterpart of the other libraries sizing their buffers per scenario, and what flatcc's
   documentation advises for constrained devices.
+- ArduinoJson has no schema. Each scenario sets `ARDUINOJSON_POOL_CAPACITY` to the number of
+  slots its largest document needs, rounded up to eight, so a document takes one pool sized to
+  it instead of the default pool of 128 slots. Its documentation describes this setting for
+  small targets. The library is header only, so the define in the scenario file is enough.
 - `<name>.cddl` for zcbor, the same, all generated together into `Generated/cbor_messages_*`
 
 # Building the code
