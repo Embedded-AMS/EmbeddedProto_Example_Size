@@ -28,6 +28,11 @@
  *    the Netherlands
  */
 
+// The flatcc emitter builds the message in pages on the heap. One page the size of the
+// buffer below, rounded up to the multiple of 128 flatcc wants, sized to this scenario the
+// way the other libraries size their buffers. The CMake passes it on to the runtime.
+#define FLATCC_EMITTER_PAGE_SIZE 128
+
 #include <FlatBuffers/helper_flatbuffers.h>
 #include <FlatBuffers/helper_published.h>
 #include <telemetry_verifier.h>

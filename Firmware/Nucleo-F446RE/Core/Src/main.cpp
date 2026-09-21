@@ -21,6 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <cstddef>
 #include <cstdint>
 #include "core_cm4.h"  // For CoreDebug and DWT register definitions
 
@@ -52,6 +53,9 @@ volatile uint32_t g_cpu_cycles_used = 0;
 volatile uint32_t g_n_bytes_in_buffer = 0;
 // Global variable to store the RAM taken by the scenario's message object. (accessible via SWD)
 volatile uint32_t g_message_size_bytes = 0;
+// Global variable to store the RAM the scenario took at its worst moment: the stack high-water
+// mark below main() plus the heap it made newlib grow. (accessible via SWD)
+volatile uint32_t g_peak_ram_bytes = 0;
 
 
 /* USER CODE END PV */
@@ -70,6 +74,43 @@ void enable_dwt_cycle_counter();
 /* USER CODE BEGIN 0 */
 // Forward declaration for scenario function
 uint32_t run_scenario();
+
+// The newlib heap, see sysmem.c. With an increment of zero it tells where the heap ends.
+extern "C" void* _sbrk(ptrdiff_t increment);
+
+// The free RAM between the heap and the stack is painted with this value before a scenario
+// runs. Whatever the scenario touches loses the pattern, which tells how deep it went.
+static constexpr uint32_t RAM_PAINT = 0xC5C5C5C5U;
+// Bytes left unpainted right under the caller's stack pointer: room for the painter's own frame.
+static constexpr uint32_t PAINT_MARGIN = 64U;
+
+//! Paint the free RAM from the heap end up to the margin below the given stack pointer.
+static void __attribute__((noinline)) paint_free_ram(const uint32_t stack_pointer)
+{
+  const uint32_t heap_end = reinterpret_cast<uint32_t>(_sbrk(0));
+  uint32_t* word = reinterpret_cast<uint32_t*>((heap_end + 3U) & ~3U);
+  uint32_t* const top = reinterpret_cast<uint32_t*>(stack_pointer - PAINT_MARGIN);
+  while(word < top)
+  {
+    *word = RAM_PAINT;
+    ++word;
+  }
+}
+
+//! Peak RAM: how far below the stack pointer the pattern is gone, plus how far the heap grew.
+static uint32_t __attribute__((noinline)) measure_peak_ram(const uint32_t stack_pointer,
+                                                            const uint32_t heap_before)
+{
+  const uint32_t heap_after = reinterpret_cast<uint32_t>(_sbrk(0));
+  const uint32_t* word = reinterpret_cast<const uint32_t*>((heap_after + 3U) & ~3U);
+  const uint32_t* const top = reinterpret_cast<const uint32_t*>(stack_pointer - PAINT_MARGIN);
+  while((word < top) && (RAM_PAINT == *word))
+  {
+    ++word;
+  }
+  const uint32_t stack_bytes = (word < top) ? (stack_pointer - reinterpret_cast<uint32_t>(word)) : 0U;
+  return stack_bytes + (heap_after - heap_before);
+}
 
 /* USER CODE END 0 */
 
@@ -121,6 +162,13 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
+    // No SysTick interrupt while measuring: its frames would show up in the stack high-water
+    // mark and its cycles in the count.
+    HAL_SuspendTick();
+    const uint32_t stack_pointer = __get_MSP();
+    const uint32_t heap_before = reinterpret_cast<uint32_t>(_sbrk(0));
+    paint_free_ram(stack_pointer);
+
     // Reset cycle counter and capture start value
     DWT->CYCCNT = 0;
 
@@ -129,6 +177,9 @@ int main(void)
 
     // Capture cycle count after scenario execution
     g_cpu_cycles_used = DWT->CYCCNT;
+
+    g_peak_ram_bytes = measure_peak_ram(stack_pointer, heap_before);
+    HAL_ResumeTick();
 
     // Infinite loop
     while(true)

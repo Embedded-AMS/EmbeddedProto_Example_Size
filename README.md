@@ -36,9 +36,15 @@ unwinder and RTTI into every C++ build, about 4.5 kB that nanopb (plain C) never
 - `cpu_cycles` from the DWT cycle counter around `run_scenario()`, read over SWD.
 - `n_bytes_in_buffer`, the number of bytes serialized, which every library must agree on.
 - `message_size_bytes`, the RAM the scenario's message object takes. A scenario reports each
-  message it creates with `report_message_size()` and the largest is kept. For Embedded Proto and
-  nanopb that is `sizeof()` of the message. ArduinoJson keeps its data on the heap, so its
-  documents use a counting allocator and report the peak heap use plus `sizeof()`.
+  message it creates with `report_message_size()` and the largest is kept. For Embedded Proto,
+  nanopb and zcbor that is `sizeof()` of the message. ArduinoJson keeps its data on the heap, so
+  its documents use a counting allocator and report the peak heap use plus `sizeof()`. FlatBuffers
+  has no message object, a buffer is read in place, so it reports nothing here.
+- `peak_ram_bytes`, the RAM the scenario takes at its worst moment: the stack it uses below
+  `main()` plus the heap it makes newlib grow. Before the scenario runs the firmware paints the
+  free RAM with a pattern, afterwards it finds the deepest word the pattern is gone from. This
+  includes the message objects, the buffers, the flatcc builder and the library's own stack use.
+  SysTick is suspended while the scenario runs so its interrupt frames stay out of it.
 
 # Libraries
 - Embedded Proto (`External/EmbeddedProto`), header only C++.
@@ -59,7 +65,15 @@ next to them in `Protofiles/`:
   `PB_NO_ERRMSG`, the one size option its documentation recommends for a small target
 - `<name>.options.json` for Embedded Proto (`maxLength`, `callbackStorage`), passed to the
   generator as `--eams_opt=options_file=...`
-- `<name>.fbs` for FlatBuffers, a hand written schema equivalent to the `.proto`
+- `<name>.fbs` for FlatBuffers, a hand written schema equivalent to the `.proto`. The flatcc
+  builder emits into pages on the heap; each scenario sets `FLATCC_EMITTER_PAGE_SIZE` to its
+  buffer size, rounded up to a multiple of 128, and the CMake builds the runtime with it. That is
+  the counterpart of the other libraries sizing their buffers per scenario, and what flatcc's
+  documentation advises for constrained devices.
+- ArduinoJson has no schema. Each scenario sets `ARDUINOJSON_POOL_CAPACITY` to the number of
+  slots its largest document needs, rounded up to eight, so a document takes one pool sized to
+  it instead of the default pool of 128 slots. Its documentation describes this setting for
+  small targets. The library is header only, so the define in the scenario file is enough.
 - `<name>.cddl` for zcbor, the same, all generated together into `Generated/cbor_messages_*`
 
 # Building the code

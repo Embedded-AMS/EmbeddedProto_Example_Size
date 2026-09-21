@@ -234,18 +234,27 @@ elseif(LIBRARY STREQUAL "FlatBuffers")
     endforeach()
 
     # The runtime the scenarios need: builder and emitter to write, verifier to check a
-    # received buffer. JSON support is left out. Allocation goes through the counting
-    # allocator so the RAM a build takes can be reported.
+    # received buffer. JSON support is left out.
     add_library(generated_code STATIC
         "${FLATCC_DIR}/src/runtime/builder.c"
         "${FLATCC_DIR}/src/runtime/emitter.c"
         "${FLATCC_DIR}/src/runtime/refmap.c"
         "${FLATCC_DIR}/src/runtime/verifier.c"
-        "${CMAKE_SOURCE_DIR}/Scenarios/FlatBuffers/counting_alloc.c"
     )
     target_include_directories(generated_code PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
     target_include_directories(generated_code PUBLIC ${FLATCC_DIR}/include)
-    target_compile_options(generated_code PUBLIC -include ${CMAKE_SOURCE_DIR}/Scenarios/FlatBuffers/counting_alloc.h)
+
+    # The emitter page size is a compile time constant of the runtime. Each scenario states the
+    # size it needs next to its buffer, so the runtime is built with that scenario's page, the
+    # way the other libraries get their buffers sized per scenario.
+    set(FLATCC_SCENARIO_SOURCE "${CMAKE_SOURCE_DIR}/Scenarios/FlatBuffers/${SCENARIO}.cpp")
+    file(STRINGS "${FLATCC_SCENARIO_SOURCE}" FLATCC_PAGE_LINE REGEX "^#define FLATCC_EMITTER_PAGE_SIZE [0-9]+")
+    if(NOT FLATCC_PAGE_LINE)
+        message(FATAL_ERROR "${FLATCC_SCENARIO_SOURCE} does not define FLATCC_EMITTER_PAGE_SIZE")
+    endif()
+    string(REGEX REPLACE "^#define FLATCC_EMITTER_PAGE_SIZE ([0-9]+).*" "\\1" FLATCC_PAGE_SIZE "${FLATCC_PAGE_LINE}")
+    message(STATUS "flatcc emitter page size for ${SCENARIO}: ${FLATCC_PAGE_SIZE}")
+    target_compile_definitions(generated_code PUBLIC FLATCC_EMITTER_PAGE_SIZE=${FLATCC_PAGE_SIZE})
 
 elseif(LIBRARY STREQUAL "Zcbor")
     # zcbor, Nordic's CBOR library: C code generated from CDDL schemas by a Python tool
