@@ -34,7 +34,8 @@ unwinder and RTTI into every C++ build, about 4.5 kB that nanopb (plain C) never
 - `text`, `data` and `bss` from `arm-none-eabi-size`, compare against the `Baseline/blinky` scenario
   to get the cost of a library.
 - `cpu_cycles` from the DWT cycle counter around `run_scenario()`, read over SWD.
-- `n_bytes_in_buffer`, the number of bytes serialized, which every library must agree on.
+- `n_bytes_in_buffer`, the number of bytes serialized. Libraries of the same format must agree on
+  it, Embedded Proto and nanopb do byte for byte; the other formats produce their own sizes.
 - `message_size_bytes`, the RAM the scenario's message object takes. A scenario reports each
   message it creates with `report_message_size()` and the largest is kept. For Embedded Proto,
   nanopb and zcbor that is `sizeof()` of the message. ArduinoJson keeps its data on the heap, so
@@ -52,7 +53,8 @@ unwinder and RTTI into every C++ build, about 4.5 kB that nanopb (plain C) never
 - FlatBuffers through flatcc (`External/flatcc`), the C implementation. Its compiler is built
   for the host once into `build/flatcc-host`, its runtime (builder, emitter, verifier, no JSON)
   is compiled for the target. The builder allocates its stacks and pages from the heap, which
-  goes through a counting allocator so the RAM of a build is reported as the message size.
+  shows up in `peak_ram_bytes`. A FlatBuffer is read in place and has no message object, so
+  FlatBuffers reports no `message_size_bytes`.
 - zcbor (`External/zcbor`), Nordic's CBOR library, C code generated from CDDL schemas. The
   generator is installed from the submodule into `External/zcbor/venv` on first use. The
   schemas keep protobuf's numbered, optional fields as map entries keyed by field number.
